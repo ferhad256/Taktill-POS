@@ -75,7 +75,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageMeta title="Dashboard | BillPOS" description="Business overview" />
+      <PageMeta title="Dashboard | Taktill" description="Business overview" />
       <PageHeader
         title={`Welcome, ${business.name}`}
         description="Here's what's happening in your shop today."

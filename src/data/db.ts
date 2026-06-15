@@ -16,7 +16,7 @@ import { calcDiscount, d } from "../lib/money";
 import { buildSeed } from "./seed";
 
 /**
- * Browser-backed data layer for BillPOS.
+ * Browser-backed data layer for Taktill.
  *
  * The PRD targets PostgreSQL + Drizzle, but this build runs entirely in the
  * browser on the Vite template, so persistence is localStorage. The module
@@ -25,7 +25,7 @@ import { buildSeed } from "./seed";
  * touching the UI.
  */
 
-const PREFIX = "billpos:";
+const PREFIX = "taktill:";
 const KEYS = {
   business: PREFIX + "business",
   users: PREFIX + "users",
@@ -72,7 +72,7 @@ export function ensureSeeded(): void {
   write(KEYS.seeded, "1");
 }
 
-/** Wipe all BillPOS data and re-seed (used by Settings → reset demo data). */
+/** Wipe all Taktill data and re-seed (used by Settings → reset demo data). */
 export function resetData(): void {
   Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
   ensureSeeded();

@@ -38,7 +38,7 @@ export default function BusinessSettings() {
 
   return (
     <>
-      <PageMeta title="Business Settings | BillPOS" description="Business settings" />
+      <PageMeta title="Business Settings | Taktill" description="Business settings" />
       <PageHeader
         title="Business Settings"
         description="Details shown on receipts and reports."

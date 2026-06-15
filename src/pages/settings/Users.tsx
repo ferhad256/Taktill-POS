@@ -42,10 +42,10 @@ export default function Users() {
 
   return (
     <>
-      <PageMeta title="Users | BillPOS" description="Manage staff and cashiers" />
+      <PageMeta title="Users | Taktill" description="Manage staff and cashiers" />
       <PageHeader
         title="Users & Cashiers"
-        description="Manage who can access BillPOS and process sales."
+        description="Manage who can access Taktill and process sales."
       />
 
       {/* Staff */}

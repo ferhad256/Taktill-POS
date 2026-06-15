@@ -46,7 +46,7 @@ export default function Inventory() {
 
   return (
     <>
-      <PageMeta title="Inventory | BillPOS" description="Manage products" />
+      <PageMeta title="Inventory | Taktill" description="Manage products" />
       <PageHeader
         title="Inventory"
         description="Manage your product catalogue and stock levels."

@@ -1,4 +1,4 @@
-// ── Domain types — mirror the BillPOS PRD schema (§4) ──────────────
+// ── Domain types — mirror the Taktill PRD schema (§4) ──────────────
 // Monetary values are kept as strings to match the PRD's NUMERIC(12,2)
 // convention and to avoid float rounding. Use src/lib/money.ts for math.
 

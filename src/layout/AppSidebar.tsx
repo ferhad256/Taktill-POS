@@ -12,6 +12,7 @@ import {
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
+import { Logo, LogoMark } from "../components/common/Logo";
 import type { Role } from "../types";
 
 type NavItem = {
@@ -107,13 +108,8 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className={`flex py-8 ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"}`}>
-        <Link to="/pos" className="flex items-center gap-2">
-          <span className="text-2xl">🧾</span>
-          {showText && (
-            <span className="text-xl font-semibold text-gray-800 dark:text-white/90">
-              BillPOS
-            </span>
-          )}
+        <Link to="/pos" className="flex items-center">
+          {showText ? <Logo className="h-9 dark:brightness-0 dark:invert" /> : <LogoMark />}
         </Link>
       </div>
 

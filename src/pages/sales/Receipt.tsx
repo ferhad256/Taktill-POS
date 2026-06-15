@@ -37,7 +37,7 @@ export default function Receipt() {
   return (
     <>
       <PageMeta
-        title={`Receipt ${data.sale.receiptNumber} | BillPOS`}
+        title={`Receipt ${data.sale.receiptNumber} | Taktill`}
         description="Sale receipt"
       />
       <div className="mb-5 flex items-center justify-between print:hidden">

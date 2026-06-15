@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import AuthLayout from "./AuthLayout";
 import PageMeta from "../../components/common/PageMeta";
+import { Logo } from "../../components/common/Logo";
 import Label from "../../components/form/Label";
 import Input from "../../components/form/input/InputField";
 import Button from "../../components/ui/button/Button";
@@ -27,16 +28,13 @@ export default function Login() {
 
   return (
     <>
-      <PageMeta title="Sign In | BillPOS" description="Sign in to BillPOS" />
+      <PageMeta title="Sign In | Taktill" description="Sign in to Taktill" />
       <AuthLayout>
         <div className="flex w-full flex-1 flex-col lg:w-1/2">
           <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center">
             <div className="mb-6">
-              <div className="mb-4 flex items-center gap-2 lg:hidden">
-                <span className="text-2xl">🧾</span>
-                <span className="text-xl font-semibold text-gray-800 dark:text-white/90">
-                  BillPOS
-                </span>
+              <div className="mb-4 lg:hidden">
+                <Logo className="h-9 dark:brightness-0 dark:invert" />
               </div>
               <h1 className="mb-1 text-title-sm font-semibold text-gray-800 dark:text-white/90">
                 Welcome back
@@ -132,7 +130,7 @@ function StaffLogin({
         </Label>
         <Input
           type="email"
-          placeholder="owner@billpos.app"
+          placeholder="owner@taktill.app"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -175,8 +173,8 @@ function StaffLogin({
         <p className="mb-1 font-medium text-gray-600 dark:text-gray-300">
           Demo accounts
         </p>
-        <p>Owner — owner@billpos.app / owner1234</p>
-        <p>Manager — manager@billpos.app / manager1234</p>
+        <p>Owner — owner@taktill.app / owner1234</p>
+        <p>Manager — manager@taktill.app / manager1234</p>
       </div>
     </form>
   );

@@ -33,7 +33,7 @@ export default function DailySummary() {
 
   return (
     <>
-      <PageMeta title="Daily Summary | BillPOS" description="Daily sales report" />
+      <PageMeta title="Daily Summary | Taktill" description="Daily sales report" />
       <PageHeader
         title="Daily Sales Summary"
         description="Sales performance for a single day."

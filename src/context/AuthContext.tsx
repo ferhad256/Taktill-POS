@@ -13,8 +13,8 @@ import {
   signInEmail,
 } from "../data/db";
 
-const USER_KEY = "billpos:session"; // owner/manager — persists across tabs
-const CASHIER_KEY = "billpos:cashier-session"; // cashier — clears on tab close
+const USER_KEY = "taktill:session"; // owner/manager — persists across tabs
+const CASHIER_KEY = "taktill:cashier-session"; // cashier — clears on tab close
 
 const ROLE_RANK: Record<Role, number> = { cashier: 0, manager: 1, owner: 2 };
 

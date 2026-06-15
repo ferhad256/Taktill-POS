@@ -35,7 +35,7 @@ export default function Sales() {
 
   return (
     <>
-      <PageMeta title="Transactions | BillPOS" description="All sales" />
+      <PageMeta title="Transactions | Taktill" description="All sales" />
       <PageHeader
         title="Transactions"
         description="Browse and review completed sales."

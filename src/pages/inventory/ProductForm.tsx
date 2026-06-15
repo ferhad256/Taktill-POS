@@ -124,7 +124,7 @@ export default function ProductForm() {
   return (
     <>
       <PageMeta
-        title={`${isEdit ? "Edit" : "New"} Product | BillPOS`}
+        title={`${isEdit ? "Edit" : "New"} Product | Taktill`}
         description="Product details"
       />
       <PageHeader

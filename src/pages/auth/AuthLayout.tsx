@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import GridShape from "../../components/common/GridShape";
 import ThemeTogglerTwo from "../../components/common/ThemeTogglerTwo";
+import { Logo } from "../../components/common/Logo";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -11,10 +12,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           <div className="relative z-1 flex items-center justify-center">
             <GridShape />
             <div className="flex max-w-sm flex-col items-center px-6 text-center">
-              <div className="mb-5 flex size-16 items-center justify-center rounded-2xl bg-white/10 text-3xl">
-                🧾
+              <div className="mb-6 rounded-2xl bg-white px-6 py-4 shadow-theme-lg">
+                <Logo className="h-12" />
               </div>
-              <h2 className="mb-2 text-2xl font-semibold text-white">BillPOS</h2>
               <p className="text-gray-400 dark:text-white/60">
                 Billing &amp; Point of Sale for retail shops and supermarkets in
                 Uganda &amp; East Africa.

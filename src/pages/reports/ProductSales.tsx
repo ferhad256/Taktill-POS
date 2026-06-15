@@ -36,7 +36,7 @@ export default function ProductSales() {
   return (
     <>
       <PageMeta
-        title="Product Sales | BillPOS"
+        title="Product Sales | Taktill"
         description="Product-level sales report"
       />
       <PageHeader

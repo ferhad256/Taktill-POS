@@ -26,15 +26,11 @@ export default function ReceiptView({
       className="mx-auto w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90"
     >
       <div className="text-center">
-        {business.logoUrl ? (
-          <img
-            src={business.logoUrl}
-            alt={business.name}
-            className="mx-auto mb-2 h-10 object-contain"
-          />
-        ) : (
-          <div className="mx-auto mb-2 text-2xl">🧾</div>
-        )}
+        <img
+          src={business.logoUrl || "/logo.png"}
+          alt={business.name}
+          className="mx-auto mb-2 h-10 object-contain"
+        />
         <h2 className="text-lg font-semibold">{business.name}</h2>
         {business.address && (
           <p className="text-xs text-gray-500 dark:text-gray-400">
