@@ -1,16 +1,18 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
 import PageMeta from "../components/common/PageMeta";
 import PageHeader from "../components/ui/PageHeader";
 import Badge from "../components/ui/badge/Badge";
+import Spinner from "../components/ui/Spinner";
 import {
   getBusiness,
   getDashboardStats,
   listProducts,
   listSales,
-} from "../data/db";
+  type DashboardStats,
+} from "../data/api";
 import { formatMoney, d } from "../lib/money";
 import {
   BoxIconLine,
@@ -19,23 +21,48 @@ import {
   AlertHexaIcon,
 } from "../icons";
 import { useTheme } from "../context/ThemeContext";
+import type { Business, Product, Sale } from "../types";
+
+interface DashboardData {
+  business: Business;
+  stats: DashboardStats;
+  sales: Sale[];
+  products: Product[];
+}
 
 export default function Dashboard() {
-  const business = useMemo(() => getBusiness(), []);
-  const stats = useMemo(() => getDashboardStats(), []);
   const { theme } = useTheme();
+  const [data, setData] = useState<DashboardData | null>(null);
 
-  const recentSales = useMemo(() => listSales().slice(0, 6), []);
-  const lowStock = useMemo(
-    () =>
-      listProducts({ activeOnly: true })
-        .filter((p) => p.stockQuantity <= p.lowStockThreshold)
-        .sort((a, b) => a.stockQuantity - b.stockQuantity)
-        .slice(0, 6),
-    [],
-  );
+  useEffect(() => {
+    Promise.all([
+      getBusiness(),
+      getDashboardStats(),
+      listSales(),
+      listProducts({ activeOnly: true }),
+    ])
+      .then(([business, stats, sales, products]) =>
+        setData({ business, stats, sales, products }),
+      )
+      .catch(() => {});
+  }, []);
 
-  const last7 = useMemo(() => {
+  if (!data) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center text-brand-500">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  const { business, stats, sales, products } = data;
+  const recentSales = sales.slice(0, 6);
+  const lowStock = products
+    .filter((p) => p.stockQuantity <= p.lowStockThreshold)
+    .sort((a, b) => a.stockQuantity - b.stockQuantity)
+    .slice(0, 6);
+
+  const last7 = (() => {
     const days: { label: string; date: string }[] = [];
     for (let i = 6; i >= 0; i--) {
       const dt = new Date();
@@ -46,13 +73,12 @@ export default function Dashboard() {
       });
     }
     return days.map((day) => {
-      const total = listSales({ date: day.date }).reduce(
-        (acc, s) => acc.plus(s.grandTotal),
-        d(0),
-      );
+      const total = sales
+        .filter((s) => s.createdAt.slice(0, 10) === day.date)
+        .reduce((acc, s) => acc.plus(s.grandTotal), d(0));
       return { label: day.label, value: total.toNumber() };
     });
-  }, []);
+  })();
 
   const chartOptions: ApexOptions = {
     chart: { type: "bar", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },

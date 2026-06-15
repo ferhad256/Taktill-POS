@@ -1,39 +1,65 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import PageHeader from "../../components/ui/PageHeader";
 import Label from "../../components/form/Label";
-import { getBusiness, resetData, updateBusiness } from "../../data/db";
+import Spinner from "../../components/ui/Spinner";
+import { getBusiness, resetData, updateBusiness } from "../../data/api";
 import { toast } from "../../components/ui/toast";
 
 const inputCls =
   "h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90";
 
 export default function BusinessSettings() {
-  const business = getBusiness();
-  const [name, setName] = useState(business.name);
-  const [address, setAddress] = useState(business.address ?? "");
-  const [phone, setPhone] = useState(business.phone ?? "");
-  const [currency, setCurrency] = useState(business.currency);
+  const [loaded, setLoaded] = useState(false);
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
+  const [currency, setCurrency] = useState("UGX");
   const [saving, setSaving] = useState(false);
 
-  function handleSave(e: React.FormEvent) {
+  useEffect(() => {
+    getBusiness()
+      .then((b) => {
+        setName(b.name);
+        setAddress(b.address ?? "");
+        setPhone(b.phone ?? "");
+        setCurrency(b.currency);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    updateBusiness({ name, address, phone, currency: currency.toUpperCase() });
-    toast.success("Business settings saved");
-    setSaving(false);
+    try {
+      await updateBusiness({ name, address, phone, currency: currency.toUpperCase() });
+      toast.success("Business settings saved");
+    } catch {
+      toast.error("Could not save settings.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleReset() {
+  async function handleReset() {
     if (
       !window.confirm(
         "Reset all demo data (products, sales, users) to the original sample set? This cannot be undone.",
       )
     )
       return;
-    resetData();
-    toast.success("Demo data reset");
-    setTimeout(() => window.location.reload(), 600);
+    await resetData();
+    toast.success("Demo data reset — please sign in again");
+    setTimeout(() => window.location.reload(), 800);
+  }
+
+  if (!loaded) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center text-brand-500">
+        <Spinner size="lg" />
+      </div>
+    );
   }
 
   return (

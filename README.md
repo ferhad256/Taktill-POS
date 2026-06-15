@@ -9,38 +9,45 @@ in Uganda & East Africa, built from the [product requirements](./BillPOS_PRD_v1.
 
 Cashiers process sales, stock is auto-deducted, receipts are generated, and
 owners/managers get inventory management and daily/product sales reports — all
-with three role tiers and no payment-gateway dependency.
+with three role tiers, real authentication, and a persistent database.
 
-## Tech stack
+## Architecture
 
-- **React 19 + Vite + TypeScript** (SPA)
-- **Tailwind CSS v4** for styling
-- **React Router 7** for routing
-- **Zustand** for the POS cart store
-- **decimal.js** for money math (never JS floats)
-- **ApexCharts** for report/dashboard charts
+Taktill is a **React SPA frontend** talking to a **Node.js + Express REST API**
+backed by a real database via **Drizzle ORM**.
 
-> **Architecture note.** The PRD targets a Next.js + PostgreSQL + Drizzle +
-> Better Auth full stack. This implementation is built on the existing Vite
-> React template, so it runs **entirely in the browser** with a typed,
-> `localStorage`-backed data layer ([`src/data/db.ts`](./src/data/db.ts)) that
-> mirrors the PRD's schema, error codes, and business rules (atomic-style stock
-> deduction, decimal money, discount caps, receipt numbering, snapshotting,
-> soft-deletes, role checks). The data layer is isolated behind typed functions
-> so a real REST/Drizzle backend can be dropped in later without touching the UI.
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19 + Vite + TypeScript, Tailwind CSS v4, React Router 7 |
+| State (POS cart) | Zustand · money math via decimal.js |
+| Charts | ApexCharts |
+| Backend | Node.js + Express (REST API, `server/`) |
+| ORM / DB | Drizzle ORM · **SQLite (better-sqlite3)** locally, **PostgreSQL** in production (swap the driver) |
+| Auth | bcrypt password hashing + DB-backed session tokens (`Authorization: Bearer`); cashier PIN sessions in a separate table |
+
+In dev, Vite serves the frontend on `:5173` and proxies `/api/*` to the Express
+API on `:8787`. Tables are created on first boot and seeded with sample data.
 
 ## Getting started
 
 ```bash
 npm install
-npm run dev      # start the dev server (http://localhost:5173)
-npm run build    # type-check + production build
-npm run preview  # preview the production build
+npm run dev      # starts BOTH the Vite frontend (:5173) and the API (:8787)
 ```
 
-Sample data (a business, products, cashiers, and a couple of sales) is seeded
-into `localStorage` on first load. Reset it any time from **Settings → Business
-→ Reset to sample data**.
+Other scripts:
+
+```bash
+npm run dev:web         # frontend only
+npm run dev:server      # API only (tsx watch)
+npm run build           # type-check + production build of the frontend
+npm run typecheck:server# type-check the API
+npm run start:server    # run the API once (no watch)
+```
+
+The SQLite database (`taktill.db`) is created and seeded automatically on first
+run. Reset to the original sample data any time from **Settings → Business →
+Reset to sample data** (you'll be signed out and can log back in).
 
 ## Demo accounts
 
@@ -52,40 +59,48 @@ into `localStorage` on first load. Reset it any time from **Settings → Busines
 
 ## Roles & access
 
-Permissions are additive — Cashier < Manager < Owner (PRD §2):
+Permissions are additive — Cashier < Manager < Owner (PRD §2). Enforced on the
+**server** (`requireAuth(minRole)` middleware) and reflected in the UI
+([`RequireAuth`](./src/components/auth/RequireAuth.tsx) + role-filtered sidebar):
 
-- **Cashier** — Point of Sale only (PIN login, session in `sessionStorage`).
+- **Cashier** — Point of Sale only (PIN login, token in `sessionStorage`).
 - **Manager** — POS + Inventory + Transactions + Reports.
 - **Owner** — everything, plus Users/Cashiers and Business settings.
 
-Routes are guarded by [`RequireAuth`](./src/components/auth/RequireAuth.tsx) and
-the sidebar is filtered by role.
+## REST API (base `/api`)
 
-## Screens
+| Method | Endpoint | Min role |
+|--------|----------|----------|
+| POST | `/auth/sign-in/email`, `/auth/sign-out`, GET `/auth/session` | — |
+| GET/POST | `/cashier-auth/list`, `/cashier-auth/login`, `/cashier-auth/logout` | — |
+| GET | `/products`, `/products/:id`, `/products/categories` | cashier |
+| POST/PUT/DELETE | `/products`, `/products/:id`, `/products/:id/adjust-stock` | manager |
+| POST | `/sales` (atomic stock deduction) | cashier |
+| GET | `/sales`, `/sales/:id` | manager / own |
+| GET | `/reports/daily-summary`, `/reports/product-sales`, `/reports/dashboard` | manager |
+| GET/PUT/POST | `/business`, `/business/reset` | cashier / owner |
+| CRUD | `/users`, `/cashiers` | owner / manager |
 
-| Screen | Route | Access |
-|--------|-------|--------|
-| Login (Email / Cashier PIN) | `/login` | All |
-| Dashboard | `/` | Manager, Owner |
-| Point of Sale | `/pos` | All |
-| Receipt | `/sales/:id/receipt` | Cashier (own), Manager, Owner |
-| Transactions | `/sales` | Manager, Owner |
-| Inventory | `/inventory` | Manager, Owner |
-| Add / Edit Product | `/inventory/new`, `/inventory/:id/edit` | Manager, Owner |
-| Daily Sales Summary | `/reports/daily` | Manager, Owner |
-| Product Sales Report | `/reports/products` | Manager, Owner |
-| Users & Cashiers | `/settings/users` | Owner |
-| Business Settings | `/settings/business` | Owner |
+All responses use the envelope `{ success, data?, error?, details? }`.
 
 ## Project structure
 
 ```
-src/
-├── components/        UI primitives, POS, inventory, auth guard, Logo
-├── context/           AuthContext (sessions), ThemeContext
-├── data/              seed.ts (sample data), db.ts (data layer + business logic)
-├── lib/               money.ts (decimal helpers), utils.ts (cn)
-├── pages/             auth, pos, sales, inventory, reports, settings
-├── store/             cart.ts (Zustand cart store + totals)
-└── types/             domain types mirroring the PRD schema
+src/                       # React + Vite frontend
+├── components/            # ui, pos, inventory, auth guard, Logo
+├── context/               # AuthContext (real session), ThemeContext
+├── data/api.ts            # typed fetch client → REST API
+├── hooks/useAsync.ts      # async data-loading helper
+├── lib/                   # auth-client (token + fetch), money, utils
+├── pages/                 # login, pos, sales, inventory, reports, settings
+└── store/cart.ts          # Zustand cart store
+
+server/                    # Node.js + Express API
+├── db/                    # Drizzle schema + better-sqlite3 connection + DDL
+├── lib/                   # auth (bcrypt + tokens), money, errors
+├── middleware/            # requireAuth role gate
+├── routes/                # auth, cashierAuth, products, sales, reports, settings
+├── services/sales.ts      # completeSale() — atomic transaction
+├── seed.ts                # sample data
+└── index.ts               # Express app
 ```

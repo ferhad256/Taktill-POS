@@ -1,35 +1,44 @@
-import { useMemo } from "react";
 import { Link, useParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import ReceiptView from "../../components/pos/ReceiptView";
-import { getBusiness, getSaleWithItems } from "../../data/db";
+import Spinner from "../../components/ui/Spinner";
+import { getBusiness, getSaleWithItems } from "../../data/api";
+import { useAsync } from "../../hooks/useAsync";
 import { useAuth } from "../../context/AuthContext";
+import { AppError } from "../../types";
 import { ChevronLeftIcon } from "../../icons";
 
 export default function Receipt() {
   const { id } = useParams();
   const { principal } = useAuth();
-  const business = useMemo(() => getBusiness(), []);
-  const data = useMemo(() => (id ? getSaleWithItems(id) : undefined), [id]);
+  const businessQuery = useAsync(getBusiness, []);
+  const saleQuery = useAsync(() => getSaleWithItems(id as string), [id]);
 
-  if (!data) {
+  const business = businessQuery.data;
+  const data = saleQuery.data;
+
+  if (saleQuery.loading || businessQuery.loading) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center dark:border-gray-800 dark:bg-white/[0.03]">
-        <p className="text-gray-500 dark:text-gray-400">Receipt not found.</p>
-        <Link to="/pos" className="mt-3 inline-block text-sm text-brand-500">
-          Back to POS
-        </Link>
+      <div className="flex h-[60vh] items-center justify-center text-brand-500">
+        <Spinner size="lg" />
       </div>
     );
   }
 
-  // Cashiers may only view their own receipts (PRD §5.3).
-  if (principal?.role === "cashier" && data.sale.cashierId !== principal.id) {
+  if (saleQuery.error || !data || !business) {
+    const forbidden =
+      saleQuery.error instanceof AppError && saleQuery.error.code === "FORBIDDEN";
     return (
       <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center dark:border-gray-800 dark:bg-white/[0.03]">
         <p className="text-gray-500 dark:text-gray-400">
-          You can only view your own receipts.
+          {forbidden ? "You can only view your own receipts." : "Receipt not found."}
         </p>
+        <Link
+          to={principal?.role === "cashier" ? "/pos" : "/sales"}
+          className="mt-3 inline-block text-sm text-brand-500"
+        >
+          Back
+        </Link>
       </div>
     );
   }

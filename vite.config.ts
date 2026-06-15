@@ -15,4 +15,13 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    proxy: {
+      // Proxy API calls to the Express backend in dev (same-origin /api).
+      "/api": {
+        target: "http://localhost:8787",
+        changeOrigin: true,
+      },
+    },
+  },
 });

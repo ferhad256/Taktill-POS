@@ -7,19 +7,23 @@ import {
 } from "react";
 import type { Principal, Role } from "../types";
 import {
-  cashierLogin,
-  ensureSeeded,
-  getBusiness,
+  cashierLoginApi,
+  getSession,
   signInEmail,
-} from "../data/db";
-
-const USER_KEY = "taktill:session"; // owner/manager — persists across tabs
-const CASHIER_KEY = "taktill:cashier-session"; // cashier — clears on tab close
+  signOut,
+} from "../data/api";
+import {
+  clearToken,
+  getToken,
+  setCashierToken,
+  setUserToken,
+} from "../lib/auth-client";
 
 const ROLE_RANK: Record<Role, number> = { cashier: 0, manager: 1, owner: 2 };
 
 interface AuthContextValue {
   principal: Principal | null;
+  loading: boolean;
   loginEmail: (email: string, password: string) => Promise<Principal>;
   loginCashier: (cashierId: string, pin: string) => Promise<Principal>;
   logout: () => void;
@@ -28,61 +32,51 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function loadPrincipal(): Principal | null {
-  try {
-    const cashier = sessionStorage.getItem(CASHIER_KEY);
-    if (cashier) return JSON.parse(cashier) as Principal;
-    const user = localStorage.getItem(USER_KEY);
-    if (user) return JSON.parse(user) as Principal;
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [principal, setPrincipal] = useState<Principal | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Restore session from the stored token on mount.
   useEffect(() => {
-    ensureSeeded();
-    setPrincipal(loadPrincipal());
+    let cancelled = false;
+    (async () => {
+      if (!getToken()) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+      try {
+        const p = await getSession();
+        if (!cancelled) setPrincipal(p);
+      } catch {
+        clearToken();
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       principal,
+      loading,
       async loginEmail(email, password) {
-        const user = signInEmail(email, password);
-        const p: Principal = {
-          kind: "user",
-          id: user.id,
-          name: user.name,
-          role: user.role,
-          businessId: user.businessId,
-          email: user.email,
-        };
-        localStorage.setItem(USER_KEY, JSON.stringify(p));
-        sessionStorage.removeItem(CASHIER_KEY);
+        const { token, principal: p } = await signInEmail(email, password);
+        setUserToken(token);
         setPrincipal(p);
         return p;
       },
       async loginCashier(cashierId, pin) {
-        const cashier = cashierLogin(cashierId, pin);
-        const p: Principal = {
-          kind: "cashier",
-          id: cashier.id,
-          name: cashier.name,
-          role: "cashier",
-          businessId: cashier.businessId,
-        };
-        sessionStorage.setItem(CASHIER_KEY, JSON.stringify(p));
-        localStorage.removeItem(USER_KEY);
+        const { token, principal: p } = await cashierLoginApi(cashierId, pin);
+        setCashierToken(token);
         setPrincipal(p);
         return p;
       },
       logout() {
-        localStorage.removeItem(USER_KEY);
-        sessionStorage.removeItem(CASHIER_KEY);
+        void signOut();
+        clearToken();
         setPrincipal(null);
       },
       hasMinRole(min) {
@@ -90,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return ROLE_RANK[principal.role] >= ROLE_RANK[min];
       },
     }),
-    [principal],
+    [principal, loading],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -101,9 +95,4 @@ export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function useBusiness() {
-  return getBusiness();
 }

@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageHeader from "../../components/ui/PageHeader";
 import Badge from "../../components/ui/badge/Badge";
 import EmptyState from "../../components/ui/EmptyState";
-import { getBusiness, listCashiers, listSales } from "../../data/db";
+import Spinner from "../../components/ui/Spinner";
+import { getBusiness, listCashiers, listSales } from "../../data/api";
+import { useAsync } from "../../hooks/useAsync";
 import { formatMoney } from "../../lib/money";
 import { DocsIcon } from "../../icons";
 import type { PaymentMethod } from "../../types";
@@ -17,21 +19,28 @@ const PAYMENT_LABELS: Record<PaymentMethod, string> = {
 };
 
 export default function Sales() {
-  const business = useMemo(() => getBusiness(), []);
-  const cashiers = useMemo(() => listCashiers(), []);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [cashierId, setCashierId] = useState("all");
 
-  const sales = useMemo(
+  const businessQuery = useAsync(getBusiness, []);
+  const cashiersQuery = useAsync(listCashiers, []);
+  const salesQuery = useAsync(
     () => listSales({ date: date || undefined, cashierId }),
     [date, cashierId],
   );
 
-  const total = useMemo(
-    () =>
-      sales.reduce((acc, s) => acc + Number(s.grandTotal), 0),
-    [sales],
-  );
+  const business = businessQuery.data;
+  const cashiers = cashiersQuery.data ?? [];
+  const sales = salesQuery.data ?? [];
+  const total = sales.reduce((acc, s) => acc + Number(s.grandTotal), 0);
+
+  if (!business) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center text-brand-500">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <>

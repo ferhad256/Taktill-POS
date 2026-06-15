@@ -1,13 +1,14 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageHeader from "../../components/ui/PageHeader";
 import Badge from "../../components/ui/badge/Badge";
 import EmptyState from "../../components/ui/EmptyState";
+import Spinner from "../../components/ui/Spinner";
 import StockAdjustModal from "../../components/inventory/StockAdjustModal";
-import { deactivateProduct, getBusiness, listCategories, listProducts } from "../../data/db";
+import { deactivateProduct, getBusiness, listCategories, listProducts } from "../../data/api";
 import { formatMoney } from "../../lib/money";
-import { useAuth } from "../../context/AuthContext";
+import { useAsync } from "../../hooks/useAsync";
 import { toast } from "../../components/ui/toast";
 import type { Product } from "../../types";
 import { BoxIconLine, PencilIcon, PlusIcon, TrashBinIcon } from "../../icons";
@@ -15,33 +16,44 @@ import { cn } from "../../lib/utils";
 
 export default function Inventory() {
   const navigate = useNavigate();
-  const { principal } = useAuth();
-  const business = useMemo(() => getBusiness(), []);
   const [version, setVersion] = useState(0);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [adjusting, setAdjusting] = useState<Product | null>(null);
 
-  const categories = useMemo(() => listCategories(), [version]);
-  const products = useMemo(
+  const businessQuery = useAsync(getBusiness, []);
+  const categoriesQuery = useAsync(listCategories, [version]);
+  const productsQuery = useAsync(
     () => listProducts({ search, category, activeOnly: true }),
     [search, category, version],
   );
+
+  const business = businessQuery.data;
+  const categories = categoriesQuery.data ?? [];
+  const products = productsQuery.data ?? [];
 
   function refresh() {
     setVersion((v) => v + 1);
   }
 
-  function handleDeactivate(product: Product) {
+  async function handleDeactivate(product: Product) {
     if (
       !window.confirm(
         `Deactivate "${product.name}"? It will be hidden from the POS but kept for past receipts.`,
       )
     )
       return;
-    deactivateProduct(product.id);
+    await deactivateProduct(product.id);
     toast.success("Product deactivated");
     refresh();
+  }
+
+  if (!business) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center text-brand-500">
+        <Spinner size="lg" />
+      </div>
+    );
   }
 
   return (
@@ -175,10 +187,9 @@ export default function Inventory() {
         )}
       </div>
 
-      {adjusting && principal && (
+      {adjusting && (
         <StockAdjustModal
           product={adjusting}
-          principal={principal}
           onClose={() => setAdjusting(null)}
           onDone={refresh}
         />

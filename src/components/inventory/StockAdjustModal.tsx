@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Modal } from "../ui/modal";
 import Label from "../form/Label";
-import { adjustStock } from "../../data/db";
-import { AppError, type AdjustReason, type Principal, type Product } from "../../types";
+import { adjustStock } from "../../data/api";
+import { AppError, type AdjustReason, type Product } from "../../types";
 import { toast } from "../ui/toast";
 import { cn } from "../../lib/utils";
 
@@ -16,12 +16,10 @@ const REASONS: { value: AdjustReason; label: string }[] = [
 
 export default function StockAdjustModal({
   product,
-  principal,
   onClose,
   onDone,
 }: {
   product: Product;
-  principal: Principal;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -38,17 +36,15 @@ export default function StockAdjustModal({
       ? product.stockQuantity + (amount || 0)
       : product.stockQuantity - (amount || 0);
 
-  function handleSave() {
+  async function handleSave() {
     if (!valid) return;
     setSaving(true);
     try {
-      adjustStock({
+      await adjustStock({
         productId: product.id,
         quantityDelta: direction === "add" ? amount : -amount,
         reason,
         notes,
-        userId: principal.id,
-        userName: principal.name,
       });
       toast.success("Stock updated");
       onDone();

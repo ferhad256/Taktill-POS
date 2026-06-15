@@ -8,8 +8,8 @@ import Input from "../../components/form/input/InputField";
 import Button from "../../components/ui/button/Button";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import { useAuth } from "../../context/AuthContext";
-import { listCashiers } from "../../data/db";
-import { AppError, type Cashier } from "../../types";
+import { listCashiersForLogin } from "../../data/api";
+import { AppError } from "../../types";
 import { cn } from "../../lib/utils";
 
 type Mode = "staff" | "cashier";
@@ -185,16 +185,19 @@ function CashierLogin({
 }: {
   onSubmit: (cashierId: string, pin: string) => Promise<unknown>;
 }) {
-  const [cashiers, setCashiers] = useState<Cashier[]>([]);
+  const [cashiers, setCashiers] = useState<{ id: string; name: string }[]>([]);
   const [cashierId, setCashierId] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const active = listCashiers({ activeOnly: true });
-    setCashiers(active);
-    if (active[0]) setCashierId(active[0].id);
+    listCashiersForLogin()
+      .then((active) => {
+        setCashiers(active);
+        if (active[0]) setCashierId(active[0].id);
+      })
+      .catch(() => setCashiers([]));
   }, []);
 
   function pressDigit(digit: string) {

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageHeader from "../../components/ui/PageHeader";
 import Label from "../../components/form/Label";
-import { createProduct, getProduct, updateProduct } from "../../data/db";
+import { createProduct, getProduct, updateProduct } from "../../data/api";
 import { AppError } from "../../types";
 import { toast } from "../../components/ui/toast";
 
@@ -40,21 +40,20 @@ export default function ProductForm() {
 
   useEffect(() => {
     if (!id) return;
-    const p = getProduct(id);
-    if (!p) {
-      setNotFound(true);
-      return;
-    }
-    setForm({
-      name: p.name,
-      sku: p.sku,
-      barcode: p.barcode ?? "",
-      category: p.category ?? "",
-      unitPrice: p.unitPrice,
-      costPrice: p.costPrice ?? "",
-      stockQuantity: String(p.stockQuantity),
-      lowStockThreshold: String(p.lowStockThreshold),
-    });
+    getProduct(id)
+      .then((p) =>
+        setForm({
+          name: p.name,
+          sku: p.sku,
+          barcode: p.barcode ?? "",
+          category: p.category ?? "",
+          unitPrice: p.unitPrice,
+          costPrice: p.costPrice ?? "",
+          stockQuantity: String(p.stockQuantity),
+          lowStockThreshold: String(p.lowStockThreshold),
+        }),
+      )
+      .catch(() => setNotFound(true));
   }, [id]);
 
   function set<K extends keyof FormState>(key: K, value: string) {
@@ -72,13 +71,13 @@ export default function ProductForm() {
     return Object.keys(next).length === 0;
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
     setSaving(true);
     try {
       if (isEdit && id) {
-        updateProduct(id, {
+        await updateProduct(id, {
           name: form.name,
           sku: form.sku || undefined,
           barcode: form.barcode || undefined,
@@ -89,7 +88,7 @@ export default function ProductForm() {
         });
         toast.success("Product updated");
       } else {
-        createProduct({
+        await createProduct({
           name: form.name,
           sku: form.sku || undefined,
           barcode: form.barcode || undefined,

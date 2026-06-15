@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import PageHeader from "../../components/ui/PageHeader";
 import Badge from "../../components/ui/badge/Badge";
@@ -11,24 +11,27 @@ import {
   listUsers,
   removeUser,
   setCashierActive,
-} from "../../data/db";
+} from "../../data/api";
+import { useAsync } from "../../hooks/useAsync";
 import { AppError } from "../../types";
 import { toast } from "../../components/ui/toast";
 import { PlusIcon, TrashBinIcon } from "../../icons";
 
 export default function Users() {
   const [version, setVersion] = useState(0);
-  const users = useMemo(() => listUsers(), [version]);
-  const cashiers = useMemo(() => listCashiers(), [version]);
+  const usersQuery = useAsync(listUsers, [version]);
+  const cashiersQuery = useAsync(listCashiers, [version]);
+  const users = usersQuery.data ?? [];
+  const cashiers = cashiersQuery.data ?? [];
   const [staffModal, setStaffModal] = useState(false);
   const [cashierModal, setCashierModal] = useState(false);
 
   const refresh = () => setVersion((v) => v + 1);
 
-  function handleRemoveUser(id: string, name: string) {
+  async function handleRemoveUser(id: string, name: string) {
     if (!window.confirm(`Remove ${name}?`)) return;
     try {
-      removeUser(id);
+      await removeUser(id);
       toast.success("User removed");
       refresh();
     } catch (err) {
@@ -131,8 +134,8 @@ export default function Users() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button
-                    onClick={() => {
-                      setCashierActive(c.id, !c.isActive);
+                    onClick={async () => {
+                      await setCashierActive(c.id, !c.isActive);
                       refresh();
                     }}
                     className="text-sm font-medium text-brand-500 hover:text-brand-600"
@@ -241,13 +244,13 @@ function AddStaffModal({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  function save() {
+  async function save() {
     if (!name.trim() || !email.trim() || password.length < 8) {
       setError("All fields required; password ≥ 8 characters.");
       return;
     }
     try {
-      addUser({ name, email, password, role: "manager" });
+      await addUser({ name, email, password });
       toast.success("Manager added");
       onDone();
       onClose();
@@ -302,13 +305,13 @@ function AddCashierModal({
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
 
-  function save() {
+  async function save() {
     if (!name.trim()) {
       setError("Name is required.");
       return;
     }
     try {
-      addCashier({ name, pin });
+      await addCashier({ name, pin });
       toast.success("Cashier added");
       onDone();
       onClose();

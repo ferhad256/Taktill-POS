@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import PageHeader from "../../components/ui/PageHeader";
 import EmptyState from "../../components/ui/EmptyState";
-import { getBusiness, getProductSales, listCategories } from "../../data/db";
+import Spinner from "../../components/ui/Spinner";
+import { getBusiness, getProductSales, listCategories } from "../../data/api";
+import { useAsync } from "../../hooks/useAsync";
 import { formatMoney } from "../../lib/money";
 import { PieChartIcon } from "../../icons";
 
@@ -13,25 +15,33 @@ function daysAgo(n: number): string {
 }
 
 export default function ProductSales() {
-  const business = useMemo(() => getBusiness(), []);
-  const categories = useMemo(() => listCategories(), []);
   const [from, setFrom] = useState(daysAgo(30));
   const [to, setTo] = useState(daysAgo(0));
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState<"units" | "revenue" | "name">("units");
 
-  const rows = useMemo(
+  const businessQuery = useAsync(getBusiness, []);
+  const categoriesQuery = useAsync(listCategories, []);
+  const rowsQuery = useAsync(
     () => getProductSales({ from, to, category, sort }),
     [from, to, category, sort],
   );
 
-  const totals = useMemo(
-    () => ({
-      units: rows.reduce((acc, r) => acc + r.unitsSold, 0),
-      revenue: rows.reduce((acc, r) => acc + Number(r.revenue), 0),
-    }),
-    [rows],
-  );
+  const business = businessQuery.data;
+  const categories = categoriesQuery.data ?? [];
+  const rows = rowsQuery.data ?? [];
+  const totals = {
+    units: rows.reduce((acc, r) => acc + r.unitsSold, 0),
+    revenue: rows.reduce((acc, r) => acc + Number(r.revenue), 0),
+  };
+
+  if (!business) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center text-brand-500">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <>

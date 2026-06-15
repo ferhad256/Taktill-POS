@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Discount, PaymentMethod, Principal, SaleItem, Sale } from "../../types";
 import { AppError } from "../../types";
 import { computeTotals, useCartStore } from "../../store/cart";
-import { completeSale } from "../../data/db";
+import { completeSale } from "../../data/api";
 import { formatMoney } from "../../lib/money";
 import { toast } from "../ui/toast";
 import { cn } from "../../lib/utils";
@@ -62,11 +62,7 @@ export default function CartPanel({
     if (items.length === 0) return;
     setSubmitting(true);
     try {
-      const result = completeSale({
-        businessId: principal.businessId,
-        cashierId: principal.id,
-        cashierName: principal.name,
-        actorRole: principal.role,
+      const result = await completeSale({
         paymentMethod,
         notes,
         cartDiscount,

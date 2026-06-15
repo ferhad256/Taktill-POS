@@ -531,11 +531,11 @@ CREATE UNIQUE INDEX idx_products_sku ON products (business_id, sku)
 
 ### 6.1 Frontend Stack
 
-The entire frontend is built with **React** (via Next.js 14 App Router) and styled exclusively with **Tailwind CSS** utility classes.
+The entire frontend is a **React 19 single-page app built with Vite** and styled exclusively with **Tailwind CSS** utility classes. Routing is handled by **React Router**.
 
 - No external UI component libraries (MUI, Ant Design, Chakra). All components are hand-built.
-- **shadcn/ui** primitives are permitted for: `Dialog`, `DropdownMenu`, `Tooltip`, `Select`, `Popover`, `Switch`, `Tabs`. Run: `npx shadcn-ui@latest add dialog`.
-- `'use client'` directive only on components that use hooks or event handlers. Server Components are the default.
+- **shadcn/ui** primitives may be adapted for: `Dialog`, `DropdownMenu`, `Tooltip`, `Select`, `Popover`, `Switch`, `Tabs`.
+- This is a client-rendered SPA — there are no Server Components. Data is fetched from the REST API (see §7) via `fetch`/an API client and held in React state.
 - **Never build Tailwind class names dynamically via string interpolation** — the JIT scanner cannot detect them. Use object maps with complete static class strings (see `Button.tsx` example).
 
 ### 6.2 Tailwind Setup
@@ -677,8 +677,8 @@ export function Button({
 ### 6.5 POS Screen — React Component Tree
 
 ```
-POSPage (Server Component)         — fetches initial products via RSC
-└── POSScreen (Client Component)   — 'use client', holds layout
+POSPage (route component)          — fetches products from the API on mount
+└── POSScreen                      — holds layout
     ├── ProductSearch              — debounced search, product grid
     │   ├── SearchInput            — auto-focused <input>
     │   ├── CategoryTabs           — horizontal scroll filter tabs
@@ -695,7 +695,6 @@ POSPage (Server Component)         — fetches initial products via RSC
 **POS layout (Tailwind):**
 ```tsx
 // src/components/pos/POSScreen.tsx
-'use client';
 export function POSScreen({ initialProducts }: Props) {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -718,7 +717,6 @@ export function POSScreen({ initialProducts }: Props) {
 
 ```typescript
 // src/store/cart.ts
-'use client';
 import { create } from 'zustand';
 import Decimal from 'decimal.js';
 
@@ -814,60 +812,57 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
 | Layer | Technology | Rationale |
 |---|---|---|
-| Frontend | React + Next.js 14 (App Router) | SSR for reports/receipts. SPA POS. Single codebase for web + PWA. |
+| Frontend | **React 19 + Vite** (SPA) | Fast dev/build, client-rendered. Single codebase for web + PWA. |
+| Routing | **React Router** | Client-side routing for all screens (§6.8). |
 | Styling | **Tailwind CSS** | Utility-first, fast, responsive by default. No custom CSS files. |
-| Components | **React** (TSX, Server + Client) | `'use client'` only where needed. Server Components default. |
+| Components | **React** (TSX) | Hand-built components. No Server Components — pure client SPA. |
 | State (POS) | Zustand | Lightweight cart state. No Redux. |
-| Backend | Next.js API Routes | Collocated with frontend. Better Auth integrates natively. |
-| Database | PostgreSQL 15+ | ACID for atomic stock deductions. NUMERIC precision for money. |
-| ORM | **Drizzle ORM + drizzle-kit** | SQL-first, type-safe, zero magic. Schema is TypeScript. |
-| Auth (Owner/Manager) | **Better Auth** | Handles sessions, email+password, password reset, Drizzle adapter. |
+| Backend | **Node.js + Express** (REST API) | Standalone API server, separate from the Vite frontend. |
+| Database | **SQLite (local dev) / PostgreSQL 15+ (production)** | ACID for atomic stock deductions. NUMERIC precision for money. |
+| ORM | **Drizzle ORM** | SQL-first, type-safe, zero magic. Same schema runs on SQLite or Postgres. |
+| Auth (Owner/Manager) | Email + password, DB-backed session tokens | bcrypt password hashing; opaque token in `sessions`, sent as `Authorization: Bearer`. |
 | Auth (Cashier) | Custom PIN sessions (DB-backed) | Separate `cashier_sessions` table, custom middleware. |
-| PDF | jsPDF (client) or Puppeteer (server) | Client-side receipts; server-side formatted reports. |
-| Hosting | Railway / Render / VPS | Integrated PostgreSQL, suitable for Uganda bandwidth. |
+| PDF | Browser print / jsPDF (client) | Client-side receipts and report export. |
+| Hosting | Railway / Render / VPS | Vite static build + Express API; suitable for Uganda bandwidth. |
 
 ### 7.2 Drizzle ORM Setup
 
+The backend uses Drizzle with **better-sqlite3** for local development (zero
+setup, single file) and the same schema runs on PostgreSQL in production by
+swapping the driver.
+
 ```bash
-npm install drizzle-orm postgres
-npm install -D drizzle-kit
+# local dev
+npm install drizzle-orm better-sqlite3
+# production swaps to: drizzle-orm postgres
 ```
 
-**`drizzle.config.ts`:**
+**`server/db/index.ts` (local — SQLite):**
 ```typescript
-import { defineConfig } from 'drizzle-kit';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import Database from 'better-sqlite3';
+import * as schema from './schema';
 
-export default defineConfig({
-  schema:  './src/db/schema.ts',
-  out:     './drizzle/migrations',
-  dialect: 'postgresql',
-  dbCredentials: { url: process.env.DATABASE_URL! },
-});
+const sqlite = new Database(process.env.DATABASE_FILE ?? 'taktill.db');
+sqlite.pragma('journal_mode = WAL');
+sqlite.pragma('foreign_keys = ON');
+
+export const db = drizzle(sqlite, { schema });
+export type DB = typeof db;
 ```
 
-**`src/db/index.ts`:**
+**Production (PostgreSQL) swaps the driver only:**
 ```typescript
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 
-const client = postgres(process.env.DATABASE_URL!, {
-  max:             10,
-  idle_timeout:    20,
-  connect_timeout: 10,
-});
-
+const client = postgres(process.env.DATABASE_URL!, { max: 10 });
 export const db = drizzle(client, { schema });
-export type DB = typeof db;
 ```
 
-**Migration commands:**
-```bash
-npx drizzle-kit generate   # generate SQL migration from schema changes
-npx drizzle-kit migrate    # apply pending migrations to DB
-npx drizzle-kit push       # push schema directly (dev only, no migration file)
-npx drizzle-kit studio     # open visual DB browser
-```
+Tables are created on first boot via idempotent `CREATE TABLE IF NOT EXISTS`
+DDL (or `drizzle-kit push` when iterating on the schema).
 
 ### 7.3 Atomic Sale Transaction (Drizzle)
 
@@ -950,110 +945,97 @@ export async function completeSale(payload: SalePayload) {
 }
 ```
 
-### 7.4 Better Auth Setup
+### 7.4 Owner / Manager Auth (Express + DB-backed sessions)
+
+Owner/Manager auth is implemented directly on the Express API: passwords are
+hashed with **bcrypt**, and a successful login mints an opaque session token
+stored (hashed) in the `sessions` table and returned to the client. The client
+sends it as `Authorization: Bearer <token>` on every request.
 
 ```bash
-npm install better-auth
+npm install express bcryptjs zod
 ```
 
-**`src/lib/auth.ts`:**
+**`server/lib/auth.ts`:**
 ```typescript
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { db } from '@/db';
-import * as schema from '@/db/schema';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { db } from '../db';
+import { users, sessions } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
-export const auth = betterAuth({
-  database: drizzleAdapter(db, {
-    provider: 'pg',
-    schema: {
-      user:         schema.users,
-      session:      schema.sessions,
-      account:      schema.accounts,
-      verification: schema.verifications,
-    },
-  }),
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: false,  // set true in production
-    password: { minLength: 8 },
-  },
-  session: {
-    expiresIn:   60 * 60 * 8,   // 8 hours
-    updateAge:   60 * 60,        // refresh every 1 hour
-    cookieCache: { enabled: true, maxAge: 60 * 5 },
-  },
-  user: {
-    additionalFields: {
-      role:       { type: 'string', required: true, defaultValue: 'manager' },
-      businessId: { type: 'string', required: true },
-    },
-  },
-  trustedOrigins: [process.env.NEXT_PUBLIC_APP_URL!],
-});
+const EXPIRES_MS = 8 * 60 * 60 * 1000; // 8 hours
+
+export async function signInEmail(email: string, password: string) {
+  const [user] = await db.select().from(users).where(eq(users.email, email));
+  if (!user || !(await bcrypt.compare(password, user.password))) return null;
+
+  const token     = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  await db.insert(sessions).values({
+    id: crypto.randomUUID(), userId: user.id, token: tokenHash,
+    expiresAt: new Date(Date.now() + EXPIRES_MS),
+  });
+  return { token, user };
+}
+
+export async function getSession(token?: string) {
+  if (!token) return null;
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const [s] = await db.select().from(sessions).where(eq(sessions.token, tokenHash));
+  if (!s || new Date(s.expiresAt) < new Date()) return null;
+  const [user] = await db.select().from(users).where(eq(users.id, s.userId));
+  return user ?? null;
+}
 ```
 
-**`src/app/api/auth/[...all]/route.ts`:**
+**`server/middleware/requireAuth.ts` — role middleware:**
 ```typescript
-import { auth } from '@/lib/auth';
-import { toNextJsHandler } from 'better-auth/next-js';
-// Handles: sign-in, sign-up, sign-out, forget-password, reset-password, get-session
-export const { GET, POST } = toNextJsHandler(auth);
-```
-
-**`src/lib/auth-client.ts`:**
-```typescript
-import { createAuthClient } from 'better-auth/react';
-export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_APP_URL,
-});
-// Usage:
-// const { data: session } = authClient.useSession();
-// await authClient.signIn.email({ email, password });
-// await authClient.signOut();
-// await authClient.forgetPassword({ email, redirectTo: '/reset-password' });
-```
-
-**`src/lib/with-auth.ts` — Role middleware:**
-```typescript
-import { auth } from '@/lib/auth';
-import { NextRequest, NextResponse } from 'next/server';
+import type { Request, Response, NextFunction } from 'express';
+import { getSession } from '../lib/auth';
 
 type AppRole = 'owner' | 'manager';
 const ROLE_RANK: Record<string, number> = { manager: 1, owner: 2 };
 
-export function withAuth(
-  handler: (req: NextRequest, ctx: any) => Promise<NextResponse>,
-  minRole: AppRole = 'manager',
-) {
-  return async (req: NextRequest, ctx: any) => {
-    const session = await auth.api.getSession({ headers: req.headers });
-    if (!session?.user) {
-      return NextResponse.json({ success: false, error: 'UNAUTHORIZED' }, { status: 401 });
+export function requireAuth(minRole: AppRole = 'manager') {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const user  = await getSession(token);
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'UNAUTHORIZED' });
     }
-    if ((ROLE_RANK[session.user.role ?? ''] ?? 0) < ROLE_RANK[minRole]) {
-      return NextResponse.json({ success: false, error: 'FORBIDDEN' }, { status: 403 });
+    if ((ROLE_RANK[user.role] ?? 0) < ROLE_RANK[minRole]) {
+      return res.status(403).json({ success: false, error: 'FORBIDDEN' });
     }
-    (req as any).session = session;
-    return handler(req, ctx);
+    (req as any).user = user;
+    next();
   };
 }
-// Usage: export const GET = withAuth(handleGet, 'manager');
+// Usage: router.get('/products', requireAuth('manager'), handleList);
 ```
+
+**Client (`src/lib/auth-client.ts`):** a thin `fetch` wrapper that stores the
+token (owner/manager in `localStorage`, cashier in `sessionStorage`) and adds
+the `Authorization` header to each request — `signIn`, `signOut`, `getSession`.
+
+> Password reset can be layered on with a `verifications`-table token + email
+> provider; it is out of scope for the MVP.
 
 ### 7.5 Cashier PIN Auth (Custom)
 
 ```typescript
-// src/app/api/cashier-auth/login/route.ts
-import { db } from '@/db';
-import { cashiers, cashierSessions } from '@/db/schema';
+// server/routes/cashierAuth.ts  →  POST /api/cashier-auth/login
+import { Router } from 'express';
+import { db } from '../db';
+import { cashiers, cashierSessions } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: NextRequest) {
-  const { businessId, cashierId, pin } = await req.json();
+export const cashierAuth = Router();
+
+cashierAuth.post('/login', async (req, res) => {
+  const { businessId, cashierId, pin } = req.body;
 
   const [cashier] = await db.select().from(cashiers)
     .where(and(
@@ -1062,80 +1044,65 @@ export async function POST(req: NextRequest) {
       eq(cashiers.isActive, true),
     ));
 
-  if (!cashier) {
-    return NextResponse.json({ success: false, error: 'INVALID_CREDENTIALS' }, { status: 401 });
-  }
-
-  const valid = await bcrypt.compare(pin, cashier.pinHash);
-  if (!valid) {
-    return NextResponse.json({ success: false, error: 'INVALID_CREDENTIALS' }, { status: 401 });
+  if (!cashier || !(await bcrypt.compare(pin, cashier.pinHash))) {
+    return res.status(401).json({ success: false, error: 'INVALID_CREDENTIALS' });
   }
 
   const rawToken  = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
   const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000);
 
-  await db.insert(cashierSessions).values({ cashierId: cashier.id, tokenHash, expiresAt });
+  await db.insert(cashierSessions).values({
+    id: crypto.randomUUID(), cashierId: cashier.id, tokenHash, expiresAt,
+  });
 
-  return NextResponse.json({
+  res.json({
     success: true,
     data: { token: rawToken, cashierId: cashier.id, cashierName: cashier.name, expiresAt },
   });
-}
+});
 ```
 
 ### 7.6 Project Folder Structure
 
+The repo holds the **Vite React frontend** (`src/`) and the **Express API**
+(`server/`) side by side. In dev, Vite proxies `/api/*` to the Express server.
+
 ```
-src/
-├── app/
-│   ├── api/
-│   │   ├── auth/[...all]/route.ts       # Better Auth handler
-│   │   ├── cashier-auth/
-│   │   │   ├── login/route.ts           # PIN login
-│   │   │   └── logout/route.ts          # PIN logout
-│   │   ├── v1/
-│   │   │   ├── products/route.ts
-│   │   │   ├── products/[id]/route.ts
-│   │   │   ├── products/[id]/adjust-stock/route.ts
-│   │   │   ├── sales/route.ts
-│   │   │   ├── sales/[id]/route.ts
-│   │   │   ├── sales/[id]/receipt/route.ts
-│   │   │   └── reports/
-│   │   │       ├── daily-summary/route.ts
-│   │   │       └── product-sales/route.ts
-│   ├── (pos)/
-│   │   └── pos/page.tsx                 # POS screen (RSC → Client)
-│   ├── (dashboard)/
-│   │   ├── dashboard/page.tsx
-│   │   ├── inventory/page.tsx
-│   │   ├── reports/
-│   │   └── settings/
-│   ├── login/page.tsx
-│   ├── layout.tsx
-│   └── globals.css
+src/                                     # React + Vite frontend
 ├── components/
 │   ├── ui/                              # Button, Input, Badge, Modal, Spinner...
 │   ├── pos/                             # POSScreen, ProductSearch, CartPanel...
 │   ├── inventory/                       # ProductTable, StockAdjustModal...
-│   └── reports/                         # DailySummaryCard, ProductSalesTable...
-├── db/
-│   ├── schema.ts                        # All Drizzle table definitions
-│   └── index.ts                         # drizzle(client, { schema })
+│   └── auth/                            # RequireAuth route guard
+├── context/                            # AuthContext, ThemeContext
+├── data/
+│   └── api.ts                          # typed fetch client → REST API
 ├── lib/
-│   ├── auth.ts                          # Better Auth server config
-│   ├── auth-client.ts                   # Better Auth React client
-│   ├── with-auth.ts                     # Role middleware
-│   └── utils.ts                         # cn() helper
+│   ├── auth-client.ts                  # token storage + Authorization header
+│   ├── money.ts                        # decimal.js helpers
+│   └── utils.ts                        # cn() helper
+├── pages/                              # login, pos, sales, inventory, reports, settings
+├── store/
+│   └── cart.ts                         # Zustand cart store
+└── App.tsx                             # React Router routes + guards
+
+server/                                  # Node.js + Express REST API
+├── db/
+│   ├── schema.ts                        # Drizzle table definitions
+│   └── index.ts                         # drizzle(better-sqlite3, { schema }) + DDL
+├── lib/
+│   ├── auth.ts                          # bcrypt + session tokens
+│   └── money.ts                         # decimal.js helpers (server-side)
+├── middleware/
+│   └── requireAuth.ts                   # role middleware
+├── routes/                              # auth, cashierAuth, products, sales, reports
 ├── services/
-│   ├── SaleService.ts                   # completeSale() — Drizzle transaction
-│   └── StockService.ts                  # adjustStock()
-└── store/
-    └── cart.ts                          # Zustand cart store
-drizzle/
-└── migrations/                          # Auto-generated SQL files
-drizzle.config.ts
-tailwind.config.ts
+│   └── sales.ts                         # completeSale() — Drizzle transaction
+├── seed.ts                              # initial business/users/products
+└── index.ts                             # express app + route mounting
+
+vite.config.ts                           # includes /api dev proxy
 ```
 
 ---
@@ -1147,12 +1114,12 @@ tailwind.config.ts
 - POS product search: results within 300ms of keypress (debounce at 200ms)
 - Sale completion (DB transaction): under 1 second
 - Report page load: under 3 seconds
-- Page initial load: under 2 seconds on 3G (Next.js SSR + code splitting)
+- Page initial load: under 2 seconds on 3G (Vite code splitting + lazy routes)
 
 ### 8.2 Security
 
 - All `/api/v1/*` routes require authentication — no public endpoints except auth routes
-- Role checks via `withAuth()` middleware on every protected route — never trust frontend-sent role claims
+- Role checks via `requireAuth()` Express middleware on every protected route — never trust frontend-sent role claims
 - Input validation with **Zod** schemas on all POST/PUT endpoints before any DB call
 - Drizzle parameterized queries only — no raw string interpolation (SQL injection prevention)
 - Rate limiting: `/api/auth/sign-in/email` — max 10 attempts per 15 minutes per IP (use `@upstash/ratelimit` or similar)
@@ -1285,14 +1252,16 @@ async function generateReceiptNumber(tx: DB, businessId: string): Promise<string
 ### 11.5 Environment Variables
 
 ```bash
-# .env.local
-DATABASE_URL="postgresql://user:password@localhost:5432/billpos"
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
-BETTER_AUTH_SECRET="generate-with: openssl rand -base64 32"
-BETTER_AUTH_URL="http://localhost:3000"
+# server/.env  (Express API)
+API_PORT="8787"
+DATABASE_FILE="taktill.db"                # local dev (better-sqlite3)
+# DATABASE_URL="postgresql://user:pass@host:5432/taktill"   # production (Postgres)
+
+# src/.env  (Vite frontend)
+VITE_API_URL="/api"                       # dev: proxied to the Express server
 
 # Email (for password reset — configure in production)
-EMAIL_FROM="noreply@billpos.app"
+EMAIL_FROM="noreply@taktill.app"
 SMTP_HOST=""
 SMTP_PORT=""
 SMTP_USER=""

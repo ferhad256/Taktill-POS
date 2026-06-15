@@ -1,19 +1,32 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
 import PageMeta from "../../components/common/PageMeta";
 import PageHeader from "../../components/ui/PageHeader";
 import EmptyState from "../../components/ui/EmptyState";
-import { getBusiness, getDailySummary } from "../../data/db";
+import Spinner from "../../components/ui/Spinner";
+import { getBusiness, getDailySummary } from "../../data/api";
+import { useAsync } from "../../hooks/useAsync";
 import { formatMoney } from "../../lib/money";
 import { useTheme } from "../../context/ThemeContext";
 import { PieChartIcon } from "../../icons";
 
 export default function DailySummary() {
-  const business = useMemo(() => getBusiness(), []);
   const { theme } = useTheme();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const summary = useMemo(() => getDailySummary(date), [date]);
+  const businessQuery = useAsync(getBusiness, []);
+  const summaryQuery = useAsync(() => getDailySummary(date), [date]);
+
+  const business = businessQuery.data;
+  const summary = summaryQuery.data;
+
+  if (!business || !summary) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center text-brand-500">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   const chartOptions: ApexOptions = {
     chart: { type: "bar", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },

@@ -5,15 +5,16 @@ import ProductSearch from "../../components/pos/ProductSearch";
 import CartPanel from "../../components/pos/CartPanel";
 import ReceiptView from "../../components/pos/ReceiptView";
 import { Modal } from "../../components/ui/modal";
+import Spinner from "../../components/ui/Spinner";
 import { useAuth } from "../../context/AuthContext";
-import { getBusiness, listProducts } from "../../data/db";
+import { getBusiness, listProducts } from "../../data/api";
 import { useCartStore } from "../../store/cart";
 import { formatMoney } from "../../lib/money";
-import type { Product, Sale, SaleItem } from "../../types";
+import type { Business, Product, Sale, SaleItem } from "../../types";
 
 export default function POS() {
   const { principal } = useAuth();
-  const business = useMemo(() => getBusiness(), []);
+  const [business, setBusiness] = useState<Business | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [receipt, setReceipt] = useState<{ sale: Sale; items: SaleItem[] } | null>(
@@ -24,10 +25,13 @@ export default function POS() {
   const addItem = useCartStore((s) => s.addItem);
 
   const reload = useCallback(() => {
-    setProducts(listProducts({ activeOnly: true }));
+    listProducts({ activeOnly: true })
+      .then(setProducts)
+      .catch(() => setProducts([]));
   }, []);
 
   useEffect(() => {
+    getBusiness().then(setBusiness).catch(() => {});
     reload();
   }, [reload]);
 
@@ -49,7 +53,13 @@ export default function POS() {
     });
   }
 
-  if (!principal) return null;
+  if (!principal || !business) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center text-brand-500">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   const cart = (
     <CartPanel
