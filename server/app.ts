@@ -3,7 +3,7 @@ import express, {
   type Request,
   type Response,
 } from "express";
-import "./db"; // initialise DB + DDL
+import "./db/index.js"; // initialise DB + DDL
 import { AppError } from "./lib/errors.js";
 import { rateLimit } from "./middleware/rateLimit.js";
 import { authRouter } from "./routes/auth.js";
