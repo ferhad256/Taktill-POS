@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import Decimal from "decimal.js";
 import { and, eq, like } from "drizzle-orm";
 import { db } from "../db";
@@ -25,14 +24,13 @@ export interface CompleteSalePayload {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-function generateReceiptNumber(tx: Tx, businessId: string): string {
+async function generateReceiptNumber(tx: Tx, businessId: string): Promise<string> {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const prefix = `${today}-`;
-  const rows = tx
+  const rows = await tx
     .select({ receiptNumber: sales.receiptNumber })
     .from(sales)
-    .where(and(eq(sales.businessId, businessId), like(sales.receiptNumber, `${prefix}%`)))
-    .all();
+    .where(and(eq(sales.businessId, businessId), like(sales.receiptNumber, `${prefix}%`)));
   const seq =
     rows
       .map((r) => parseInt(r.receiptNumber.split("-")[1], 10))
@@ -42,11 +40,11 @@ function generateReceiptNumber(tx: Tx, businessId: string): string {
 }
 
 /**
- * Complete a sale atomically (PRD §3.3.3 / §7.3). Runs inside a single
- * better-sqlite3 transaction: validate every item against current stock,
- * then insert the sale + items and decrement stock — or roll back entirely.
+ * Complete a sale atomically (PRD §3.3.3 / §7.3). A single Postgres
+ * transaction locks each product row with SELECT … FOR UPDATE, validates
+ * stock, then inserts the sale + items and decrements stock — or rolls back.
  */
-export function completeSale(payload: CompleteSalePayload) {
+export async function completeSale(payload: CompleteSalePayload) {
   if (!payload.items.length) {
     throw new AppError("VALIDATION_ERROR", 400, "Cart is empty");
   }
@@ -59,7 +57,7 @@ export function completeSale(payload: CompleteSalePayload) {
     }
   }
 
-  return db.transaction((tx) => {
+  return db.transaction(async (tx) => {
     interface Line {
       product: typeof products.$inferSelect;
       quantity: number;
@@ -79,11 +77,11 @@ export function completeSale(payload: CompleteSalePayload) {
     let lineDiscountTotal = d(0);
 
     for (const item of payload.items) {
-      const [product] = tx
+      const [product] = await tx
         .select()
         .from(products)
         .where(and(eq(products.id, item.productId), eq(products.businessId, payload.businessId)))
-        .all();
+        .for("update");
 
       if (!product) throw new AppError("PRODUCT_NOT_FOUND", 404);
       if (!product.isActive) throw new AppError("PRODUCT_INACTIVE", 422);
@@ -121,45 +119,45 @@ export function completeSale(payload: CompleteSalePayload) {
     const totalDiscount = lineDiscountTotal.plus(cartDiscAmt);
 
     const now = new Date().toISOString();
-    const saleId = crypto.randomUUID();
-    const sale = {
-      id: saleId,
-      businessId: payload.businessId,
-      cashierId: payload.cashierId,
-      cashierName: payload.cashierName,
-      receiptNumber: generateReceiptNumber(tx, payload.businessId),
-      subtotal: grossSubtotal.toFixed(2),
-      totalDiscount: totalDiscount.toFixed(2),
-      grandTotal: grandTotal.toFixed(2),
-      paymentMethod: payload.paymentMethod,
-      notes: payload.notes?.trim() || null,
-      createdAt: now,
-    };
-    tx.insert(sales).values(sale).run();
+    const [sale] = await tx
+      .insert(sales)
+      .values({
+        businessId: payload.businessId,
+        cashierId: payload.cashierId,
+        cashierName: payload.cashierName,
+        receiptNumber: await generateReceiptNumber(tx, payload.businessId),
+        subtotal: grossSubtotal.toFixed(2),
+        totalDiscount: totalDiscount.toFixed(2),
+        grandTotal: grandTotal.toFixed(2),
+        paymentMethod: payload.paymentMethod,
+        notes: payload.notes?.trim() || null,
+        createdAt: now,
+      })
+      .returning();
 
-    const items = lines.map((l) => ({
-      id: crypto.randomUUID(),
-      saleId,
-      productId: l.product.id,
-      productName: l.product.name, // snapshot
-      productSku: l.product.sku, // snapshot
-      quantity: l.quantity,
-      unitPrice: d(l.product.unitPrice).toFixed(2), // snapshot
-      discountType: l.discount?.type ?? null,
-      discountValue: l.discount ? String(l.discount.value) : null,
-      discountAmount: l.discountAmount.toFixed(2),
-      lineTotal: l.lineTotal.toFixed(2),
-    }));
-    for (const it of items) tx.insert(saleItems).values(it).run();
-
+    const items = [];
     for (const l of lines) {
-      tx.update(products)
-        .set({
-          stockQuantity: l.product.stockQuantity - l.quantity,
-          updatedAt: now,
+      const [item] = await tx
+        .insert(saleItems)
+        .values({
+          saleId: sale.id,
+          productId: l.product.id,
+          productName: l.product.name, // snapshot
+          productSku: l.product.sku, // snapshot
+          quantity: l.quantity,
+          unitPrice: d(l.product.unitPrice).toFixed(2), // snapshot
+          discountType: l.discount?.type ?? null,
+          discountValue: l.discount ? String(l.discount.value) : null,
+          discountAmount: l.discountAmount.toFixed(2),
+          lineTotal: l.lineTotal.toFixed(2),
         })
-        .where(eq(products.id, l.product.id))
-        .run();
+        .returning();
+      items.push(item);
+
+      await tx
+        .update(products)
+        .set({ stockQuantity: l.product.stockQuantity - l.quantity, updatedAt: now })
+        .where(eq(products.id, l.product.id));
     }
 
     return { sale, items };

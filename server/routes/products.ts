@@ -1,5 +1,4 @@
 import { Router } from "express";
-import crypto from "crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
@@ -15,9 +14,9 @@ function businessId(req: any): string {
 }
 
 // ── List / read (cashier+) ─────────────────────────────────────────
-productsRouter.get("/", requireAuth(), (req, res) => {
+productsRouter.get("/", requireAuth(), async (req, res) => {
   const { search, category, activeOnly } = req.query as Record<string, string>;
-  let rows = db.select().from(products).where(eq(products.businessId, businessId(req))).all();
+  let rows = await db.select().from(products).where(eq(products.businessId, businessId(req)));
   if (activeOnly === "true") rows = rows.filter((p) => p.isActive);
   if (category && category !== "all") rows = rows.filter((p) => p.category === category);
   if (search) {
@@ -33,19 +32,27 @@ productsRouter.get("/", requireAuth(), (req, res) => {
   res.json({ success: true, data: rows });
 });
 
-productsRouter.get("/categories", requireAuth(), (req, res) => {
-  const rows = db.select().from(products).where(eq(products.businessId, businessId(req))).all();
+productsRouter.get("/categories", requireAuth(), async (req, res) => {
+  const rows = await db.select().from(products).where(eq(products.businessId, businessId(req)));
   const set = new Set<string>();
   rows.forEach((p) => p.category && set.add(p.category));
   res.json({ success: true, data: Array.from(set).sort() });
 });
 
-productsRouter.get("/:id", requireAuth(), (req, res) => {
-  const [product] = db
+productsRouter.get("/adjustments/log", requireAuth("manager"), async (req, res) => {
+  const rows = await db
+    .select()
+    .from(stockAdjustments)
+    .where(eq(stockAdjustments.businessId, businessId(req)))
+    .orderBy(desc(stockAdjustments.createdAt));
+  res.json({ success: true, data: rows });
+});
+
+productsRouter.get("/:id", requireAuth(), async (req, res) => {
+  const [product] = await db
     .select()
     .from(products)
-    .where(and(eq(products.id, String(req.params.id)), eq(products.businessId, businessId(req))))
-    .all();
+    .where(and(eq(products.id, String(req.params.id)), eq(products.businessId, businessId(req))));
   if (!product) throw new AppError("PRODUCT_NOT_FOUND", 404);
   res.json({ success: true, data: product });
 });
@@ -62,59 +69,58 @@ const productSchema = z.object({
   lowStockThreshold: z.number().int().min(0).optional(),
 });
 
-productsRouter.post("/", requireAuth("manager"), (req, res) => {
+productsRouter.post("/", requireAuth("manager"), async (req, res) => {
   const parsed = productSchema.safeParse(req.body);
   if (!parsed.success) throw new AppError("VALIDATION_ERROR", 400, parsed.error.issues);
   const input = parsed.data;
   const biz = businessId(req);
 
   const sku = (input.sku || "").trim() || `SKU-${Date.now().toString().slice(-6)}`;
-  const dup = db
+  const dup = await db
     .select()
     .from(products)
-    .where(and(eq(products.businessId, biz), eq(products.sku, sku), eq(products.isActive, true)))
-    .all();
+    .where(and(eq(products.businessId, biz), eq(products.sku, sku), eq(products.isActive, true)));
   if (dup.length) throw new AppError("DUPLICATE_SKU", 409);
 
   const now = new Date().toISOString();
-  const product = {
-    id: crypto.randomUUID(),
-    businessId: biz,
-    name: input.name.trim(),
-    sku,
-    barcode: input.barcode?.trim() || null,
-    category: input.category?.trim() || null,
-    unitPrice: d(input.unitPrice).toFixed(2),
-    costPrice: input.costPrice !== undefined ? d(input.costPrice).toFixed(2) : null,
-    stockQuantity: Math.max(0, Math.trunc(input.stockQuantity ?? 0)),
-    lowStockThreshold: Math.max(0, Math.trunc(input.lowStockThreshold ?? 5)),
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-  };
-  db.insert(products).values(product).run();
+  const [product] = await db
+    .insert(products)
+    .values({
+      businessId: biz,
+      name: input.name.trim(),
+      sku,
+      barcode: input.barcode?.trim() || null,
+      category: input.category?.trim() || null,
+      unitPrice: d(input.unitPrice).toFixed(2),
+      costPrice: input.costPrice !== undefined ? d(input.costPrice).toFixed(2) : null,
+      stockQuantity: Math.max(0, Math.trunc(input.stockQuantity ?? 0)),
+      lowStockThreshold: Math.max(0, Math.trunc(input.lowStockThreshold ?? 5)),
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
   res.status(201).json({ success: true, data: product });
 });
 
-productsRouter.put("/:id", requireAuth("manager"), (req, res) => {
+productsRouter.put("/:id", requireAuth("manager"), async (req, res) => {
   const parsed = productSchema.partial().safeParse(req.body);
   if (!parsed.success) throw new AppError("VALIDATION_ERROR", 400, parsed.error.issues);
   const biz = businessId(req);
-  const [existing] = db
+  const [existing] = await db
     .select()
     .from(products)
-    .where(and(eq(products.id, String(req.params.id)), eq(products.businessId, biz)))
-    .all();
+    .where(and(eq(products.id, String(req.params.id)), eq(products.businessId, biz)));
   if (!existing) throw new AppError("PRODUCT_NOT_FOUND", 404);
 
   const input = parsed.data;
   if (input.sku) {
-    const dup = db
-      .select()
-      .from(products)
-      .where(and(eq(products.businessId, biz), eq(products.sku, input.sku), eq(products.isActive, true)))
-      .all()
-      .filter((p) => p.id !== existing.id);
+    const dup = (
+      await db
+        .select()
+        .from(products)
+        .where(and(eq(products.businessId, biz), eq(products.sku, input.sku), eq(products.isActive, true)))
+    ).filter((p) => p.id !== existing.id);
     if (dup.length) throw new AppError("DUPLICATE_SKU", 409);
   }
 
@@ -131,22 +137,25 @@ productsRouter.put("/:id", requireAuth("manager"), (req, res) => {
         : existing.lowStockThreshold,
     updatedAt: new Date().toISOString(),
   };
-  db.update(products).set(next).where(eq(products.id, existing.id)).run();
-  res.json({ success: true, data: { ...existing, ...next } });
+  const [updated] = await db
+    .update(products)
+    .set(next)
+    .where(eq(products.id, existing.id))
+    .returning();
+  res.json({ success: true, data: updated });
 });
 
-productsRouter.delete("/:id", requireAuth("manager"), (req, res) => {
+productsRouter.delete("/:id", requireAuth("manager"), async (req, res) => {
   const biz = businessId(req);
-  const [existing] = db
+  const [existing] = await db
     .select()
     .from(products)
-    .where(and(eq(products.id, String(req.params.id)), eq(products.businessId, biz)))
-    .all();
+    .where(and(eq(products.id, String(req.params.id)), eq(products.businessId, biz)));
   if (!existing) throw new AppError("PRODUCT_NOT_FOUND", 404);
-  db.update(products)
+  await db
+    .update(products)
     .set({ isActive: false, updatedAt: new Date().toISOString() })
-    .where(eq(products.id, existing.id))
-    .run();
+    .where(eq(products.id, existing.id));
   res.json({ success: true });
 });
 
@@ -156,15 +165,14 @@ const adjustSchema = z.object({
   notes: z.string().optional(),
 });
 
-productsRouter.post("/:id/adjust-stock", requireAuth("manager"), (req: any, res) => {
+productsRouter.post("/:id/adjust-stock", requireAuth("manager"), async (req: any, res) => {
   const parsed = adjustSchema.safeParse(req.body);
   if (!parsed.success) throw new AppError("VALIDATION_ERROR", 400, parsed.error.issues);
   const biz = businessId(req);
-  const [product] = db
+  const [product] = await db
     .select()
     .from(products)
-    .where(and(eq(products.id, String(req.params.id)), eq(products.businessId, biz)))
-    .all();
+    .where(and(eq(products.id, String(req.params.id)), eq(products.businessId, biz)));
   if (!product) throw new AppError("PRODUCT_NOT_FOUND", 404);
   if (!product.isActive) throw new AppError("PRODUCT_INACTIVE", 422);
 
@@ -173,32 +181,23 @@ productsRouter.post("/:id/adjust-stock", requireAuth("manager"), (req: any, res)
   if (after < 0) throw new AppError("INSUFFICIENT_STOCK", 422, "Stock cannot go below zero");
 
   const now = new Date().toISOString();
-  db.update(products).set({ stockQuantity: after, updatedAt: now }).where(eq(products.id, product.id)).run();
-  db.insert(stockAdjustments)
-    .values({
-      id: crypto.randomUUID(),
-      productId: product.id,
-      productName: product.name,
-      businessId: biz,
-      adjustedByUserId: req.principal.id,
-      adjustedByName: req.principal.name,
-      quantityDelta: Math.trunc(parsed.data.quantityDelta),
-      quantityBefore: before,
-      quantityAfter: after,
-      reason: parsed.data.reason,
-      notes: parsed.data.notes?.trim() || null,
-      createdAt: now,
-    })
-    .run();
-  res.json({ success: true, data: { ...product, stockQuantity: after } });
-});
-
-productsRouter.get("/adjustments/log", requireAuth("manager"), (req, res) => {
-  const rows = db
-    .select()
-    .from(stockAdjustments)
-    .where(eq(stockAdjustments.businessId, businessId(req)))
-    .orderBy(desc(stockAdjustments.createdAt))
-    .all();
-  res.json({ success: true, data: rows });
+  const [updated] = await db
+    .update(products)
+    .set({ stockQuantity: after, updatedAt: now })
+    .where(eq(products.id, product.id))
+    .returning();
+  await db.insert(stockAdjustments).values({
+    productId: product.id,
+    productName: product.name,
+    businessId: biz,
+    adjustedByUserId: req.principal.id,
+    adjustedByName: req.principal.name,
+    quantityDelta: Math.trunc(parsed.data.quantityDelta),
+    quantityBefore: before,
+    quantityAfter: after,
+    reason: parsed.data.reason,
+    notes: parsed.data.notes?.trim() || null,
+    createdAt: now,
+  });
+  res.json({ success: true, data: updated });
 });
