@@ -49,6 +49,12 @@ export async function completeSale(payload: CompleteSalePayload) {
     throw new AppError("VALIDATION_ERROR", 400, "Cart is empty");
   }
 
+  // Discount rules (PRD §3.3.2): per-line OR cart-total, not both.
+  const hasLineDiscount = payload.items.some((i) => i.discount && i.discount.value > 0);
+  if (hasLineDiscount && payload.cartDiscount && payload.cartDiscount.value > 0) {
+    throw new AppError("VALIDATION_ERROR", 400, "Apply line discounts OR a cart discount, not both");
+  }
+
   // Cashier discount cap (PRD §3.3.2).
   if (payload.actorRole === "cashier") {
     const over = (disc?: Discount) => disc?.type === "percent" && disc.value > 20;
@@ -118,7 +124,7 @@ export async function completeSale(payload: CompleteSalePayload) {
     const grandTotal = afterLineDiscounts.minus(cartDiscAmt);
     const totalDiscount = lineDiscountTotal.plus(cartDiscAmt);
 
-    const now = new Date().toISOString();
+    const now = new Date();
     const [sale] = await tx
       .insert(sales)
       .values({
@@ -156,7 +162,7 @@ export async function completeSale(payload: CompleteSalePayload) {
 
       await tx
         .update(products)
-        .set({ stockQuantity: l.product.stockQuantity - l.quantity, updatedAt: now })
+        .set({ stockQuantity: l.product.stockQuantity - l.quantity, updatedAt: new Date() })
         .where(eq(products.id, l.product.id));
     }
 

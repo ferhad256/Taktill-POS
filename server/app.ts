@@ -1,0 +1,44 @@
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
+import "./db"; // initialise DB + DDL
+import { AppError } from "./lib/errors";
+import { rateLimit } from "./middleware/rateLimit";
+import { authRouter } from "./routes/auth";
+import { cashierAuthRouter } from "./routes/cashierAuth";
+import { productsRouter } from "./routes/products";
+import { salesRouter } from "./routes/sales";
+import { reportsRouter } from "./routes/reports";
+import { settingsRouter } from "./routes/settings";
+
+export const app = express();
+app.use(express.json());
+
+// Mount routes under both /api/v1 (PRD §5) and /api (backward compat)
+for (const base of ["/api/v1", "/api"]) {
+  app.get(`${base}/health`, (_req, res) => res.json({ success: true, data: "ok" }));
+  app.use(`${base}/auth`, rateLimit(10, 15 * 60 * 1000), authRouter);
+  app.use(`${base}/cashier-auth`, cashierAuthRouter);
+  app.use(`${base}/products`, productsRouter);
+  app.use(`${base}/sales`, salesRouter);
+  app.use(`${base}/reports`, reportsRouter);
+  app.use(`${base}`, settingsRouter);
+
+  app.use(base, (_req, res) => {
+    res.status(404).json({ success: false, error: "NOT_FOUND" });
+  });
+}
+
+// Central error handler → PRD response envelope (§5).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof AppError) {
+    return res
+      .status(err.status)
+      .json({ success: false, error: err.code, details: err.details });
+  }
+  console.error("[api] Unhandled error:", err);
+  res.status(500).json({ success: false, error: "INTERNAL_ERROR" });
+});

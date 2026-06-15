@@ -78,8 +78,8 @@ export async function cashierLogin(
   await db.insert(cashierSessions).values({
     cashierId: cashier.id,
     tokenHash: sha256(token),
-    expiresAt: new Date(Date.now() + CASHIER_TTL_MS).toISOString(),
-    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + CASHIER_TTL_MS),
+    createdAt: new Date(),
   });
 
   return {
@@ -121,5 +121,5 @@ export async function logoutCashier(token?: string): Promise<void> {
 }
 
 export function hashPassword(password: string): string {
-  return bcrypt.hashSync(password, 10);
+  return bcrypt.hashSync(password, 12);
 }

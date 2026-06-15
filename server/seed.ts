@@ -42,7 +42,7 @@ export async function seedIfEmpty(): Promise<void> {
   const existing = await db.select().from(businesses);
   if (existing.length > 0) return;
 
-  const now = new Date().toISOString();
+  const now = new Date();
 
   await db.insert(businesses).values({
     id: BUSINESS_ID,
@@ -90,9 +90,9 @@ export async function seedIfEmpty(): Promise<void> {
       isActive: true,
       createdAt: now,
     },
-  ]);
+  ] as any);
 
-  const productRows = productSeeds.map((p, i) => ({
+  const productRows: any[] = productSeeds.map((p, i) => ({
     id: `prd-${String(i + 1).padStart(3, "0")}`,
     businessId: BUSINESS_ID,
     name: p.name,
@@ -114,7 +114,7 @@ export async function seedIfEmpty(): Promise<void> {
   const at = (h: number, m: number) => {
     const dt = new Date(today);
     dt.setHours(h, m, 0, 0);
-    return dt.toISOString();
+    return dt;
   };
   const prefix = today.toISOString().slice(0, 10).replace(/-/g, "");
 
@@ -145,7 +145,7 @@ export async function seedIfEmpty(): Promise<void> {
       notes: null,
       createdAt: at(11, 40),
     },
-  ]);
+  ] as any);
 
   await db.insert(saleItems).values([
     { id: "si-1", saleId: "sal-1", productId: "prd-001", productName: "Milk 1L", productSku: "BEV-001", quantity: 2, unitPrice: "3500.00", discountType: null, discountValue: null, discountAmount: "0.00", lineTotal: "7000.00" },

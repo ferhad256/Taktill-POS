@@ -5,6 +5,7 @@ import { db } from "../db";
 import { products, saleItems, sales } from "../db/schema";
 import { requireAuth } from "../middleware/requireAuth";
 import { d } from "../lib/money";
+import { toDateStr } from "../lib/date";
 
 export const reportsRouter = Router();
 
@@ -16,7 +17,7 @@ async function bizSales(businessId: string) {
 reportsRouter.get("/daily-summary", requireAuth("manager"), async (req: any, res) => {
   const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
   const all = await bizSales(req.principal.businessId);
-  const rows = all.filter((s) => s.createdAt.slice(0, 10) === date);
+  const rows = all.filter((s) => toDateStr(s.createdAt) === date);
 
   const totalRevenue = rows.reduce((acc, s) => acc.plus(s.grandTotal), d(0));
   const totalDiscount = rows.reduce((acc, s) => acc.plus(s.totalDiscount), d(0));
@@ -66,7 +67,7 @@ reportsRouter.get("/product-sales", requireAuth("manager"), async (req: any, res
 
   const all = await bizSales(biz);
   const inRange = all.filter((s) => {
-    const day = s.createdAt.slice(0, 10);
+    const day = toDateStr(s.createdAt);
     return day >= from && day <= to;
   });
   const saleIds = new Set(inRange.map((s) => s.id));
@@ -117,7 +118,7 @@ reportsRouter.get("/product-sales", requireAuth("manager"), async (req: any, res
 reportsRouter.get("/daily-summary/export", requireAuth("manager"), async (req: any, res) => {
   const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
   const all = await bizSales(req.principal.businessId);
-  const rows = all.filter((s) => s.createdAt.slice(0, 10) === date);
+  const rows = all.filter((s) => toDateStr(s.createdAt) === date);
   const totalRevenue = rows.reduce((acc, s) => acc.plus(s.grandTotal), d(0));
   const count = rows.length;
 
@@ -153,7 +154,7 @@ reportsRouter.get("/dashboard", requireAuth("manager"), async (req: any, res) =>
   const biz = req.principal.businessId;
   const today = new Date().toISOString().slice(0, 10);
   const all = await bizSales(biz);
-  const todays = all.filter((s) => s.createdAt.slice(0, 10) === today);
+  const todays = all.filter((s) => toDateStr(s.createdAt) === today);
   const allProducts = await db.select().from(products).where(eq(products.businessId, biz));
   const active = allProducts.filter((p) => p.isActive);
 

@@ -1,9 +1,11 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   pgEnum,
   uniqueIndex,
   uuid,
   text,
+  varchar,
   boolean,
   integer,
   numeric,
@@ -28,7 +30,7 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   // BillPOS custom fields (Better Auth additionalFields)
-  role: text("role").notNull().default("manager"), // 'owner' | 'manager'
+  role: roleEnum("role").notNull().default("manager"),
   businessId: uuid("business_id"),
 });
 
@@ -75,12 +77,12 @@ export const verifications = pgTable("verifications", {
 // ── BillPOS app tables ─────────────────────────────────────────────
 export const businesses = pgTable("businesses", {
   id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
+  name: varchar("name", { length: 200 }).notNull(),
   address: text("address"),
-  phone: text("phone"),
+  phone: varchar("phone", { length: 20 }),
   logoUrl: text("logo_url"),
-  currency: text("currency").notNull().default("UGX"),
-  createdAt: text("created_at").notNull(),
+  currency: varchar("currency", { length: 5 }).notNull().default("UGX"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const cashiers = pgTable("cashiers", {
@@ -88,10 +90,10 @@ export const cashiers = pgTable("cashiers", {
   businessId: uuid("business_id")
     .notNull()
     .references(() => businesses.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
   pinHash: text("pin_hash").notNull(), // bcrypt hash of 4-digit PIN
   isActive: boolean("is_active").notNull().default(true),
-  createdAt: text("created_at").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const cashierSessions = pgTable("cashier_sessions", {
@@ -100,8 +102,8 @@ export const cashierSessions = pgTable("cashier_sessions", {
     .notNull()
     .references(() => cashiers.id, { onDelete: "cascade" }),
   tokenHash: text("token_hash").notNull(), // sha256 of raw token
-  expiresAt: text("expires_at").notNull(),
-  createdAt: text("created_at").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const products = pgTable("products", {
@@ -109,19 +111,19 @@ export const products = pgTable("products", {
   businessId: uuid("business_id")
     .notNull()
     .references(() => businesses.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  sku: text("sku").notNull(),
-  barcode: text("barcode"),
-  category: text("category"),
+  name: varchar("name", { length: 120 }).notNull(),
+  sku: varchar("sku", { length: 60 }).notNull(),
+  barcode: varchar("barcode", { length: 60 }),
+  category: varchar("category", { length: 80 }),
   unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).notNull(),
   costPrice: numeric("cost_price", { precision: 12, scale: 2 }),
   stockQuantity: integer("stock_quantity").notNull().default(0),
   lowStockThreshold: integer("low_stock_threshold").notNull().default(5),
   isActive: boolean("is_active").notNull().default(true),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
-  skuIdx: uniqueIndex("idx_products_sku").on(table.businessId, table.sku),
+  skuIdx: uniqueIndex("idx_products_sku").on(table.businessId, table.sku).where(sql`is_active = true`),
 }));
 
 export const sales = pgTable("sales", {
@@ -133,15 +135,15 @@ export const sales = pgTable("sales", {
     .notNull()
     .references(() => cashiers.id),
   cashierName: text("cashier_name").notNull(),
-  receiptNumber: text("receipt_number").notNull(),
+  receiptNumber: varchar("receipt_number", { length: 30 }).notNull(),
   subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull(),
   totalDiscount: numeric("total_discount", { precision: 12, scale: 2 })
     .notNull()
     .default("0"),
   grandTotal: numeric("grand_total", { precision: 12, scale: 2 }).notNull(),
-  paymentMethod: text("payment_method").notNull(),
+  paymentMethod: paymentMethodEnum("payment_method").notNull(),
   notes: text("notes"),
-  createdAt: text("created_at").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   receiptIdx: uniqueIndex("idx_sales_receipt").on(table.businessId, table.receiptNumber),
 }));
@@ -154,11 +156,11 @@ export const saleItems = pgTable("sale_items", {
   productId: uuid("product_id")
     .notNull()
     .references(() => products.id),
-  productName: text("product_name").notNull(), // snapshot
-  productSku: text("product_sku").notNull(), // snapshot
+  productName: varchar("product_name", { length: 120 }).notNull(), // snapshot
+  productSku: varchar("product_sku", { length: 60 }).notNull(), // snapshot
   quantity: integer("quantity").notNull(),
   unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).notNull(),
-  discountType: text("discount_type"),
+  discountType: discountTypeEnum("discount_type"),
   discountValue: numeric("discount_value", { precision: 12, scale: 2 }),
   discountAmount: numeric("discount_amount", { precision: 12, scale: 2 })
     .notNull()
@@ -168,15 +170,19 @@ export const saleItems = pgTable("sale_items", {
 
 export const stockAdjustments = pgTable("stock_adjustments", {
   id: uuid("id").primaryKey().defaultRandom(),
-  productId: uuid("product_id").notNull(),
-  productName: text("product_name").notNull(),
-  businessId: uuid("business_id").notNull(),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id),
+  productName: text("product_name").notNull(), // snapshot
+  businessId: uuid("business_id")
+    .notNull()
+    .references(() => businesses.id),
   adjustedByUserId: text("adjusted_by_user_id").notNull(),
-  adjustedByName: text("adjusted_by_name").notNull(),
+  adjustedByName: text("adjusted_by_name").notNull(), // snapshot
   quantityDelta: integer("quantity_delta").notNull(),
   quantityBefore: integer("quantity_before").notNull(),
   quantityAfter: integer("quantity_after").notNull(),
-  reason: text("reason").notNull(),
+  reason: adjustReasonEnum("reason").notNull(),
   notes: text("notes"),
-  createdAt: text("created_at").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

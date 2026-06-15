@@ -6,6 +6,7 @@ import { saleItems, sales } from "../db/schema";
 import { requireAuth } from "../middleware/requireAuth";
 import { completeSale } from "../services/sales";
 import { AppError } from "../lib/errors";
+import { byCreatedAtDesc, toDateStr } from "../lib/date";
 
 export const salesRouter = Router();
 
@@ -49,9 +50,9 @@ salesRouter.get("/", requireAuth("manager"), async (req: any, res) => {
     .select()
     .from(sales)
     .where(eq(sales.businessId, req.principal.businessId));
-  if (date) rows = rows.filter((s) => s.createdAt.slice(0, 10) === date);
+  if (date) rows = rows.filter((s) => toDateStr(s.createdAt) === date);
   if (cashierId && cashierId !== "all") rows = rows.filter((s) => s.cashierId === cashierId);
-  rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  rows.sort(byCreatedAtDesc);
 
   const pageNum = Math.max(1, parseInt(page ?? "1", 10) || 1);
   const limitNum = Math.max(1, Math.min(100, parseInt(limit ?? "50", 10) || 50));

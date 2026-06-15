@@ -123,7 +123,7 @@ settingsRouter.post("/cashiers", requireAuth("owner"), async (req: any, res) => 
     name: parsed.data.name.trim(),
     pinHash: bcrypt.hashSync(parsed.data.pin, 12),
     isActive: true,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(),
   };
   await db.insert(cashiers).values(cashier);
   res.status(201).json({ success: true, data: { id: cashier.id, name: cashier.name, isActive: true } });

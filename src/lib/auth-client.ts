@@ -1,6 +1,6 @@
 import { AppError } from "../types";
 
-const API = import.meta.env.VITE_API_URL || "/api";
+const API = import.meta.env.VITE_API_URL || "/api/v1";
 const USER_TOKEN_KEY = "taktill:token"; // owner/manager — persists across tabs
 const CASHIER_TOKEN_KEY = "taktill:cashier-token"; // cashier — clears on tab close
 

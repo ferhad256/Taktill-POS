@@ -85,7 +85,7 @@ productsRouter.post("/", requireAuth("manager"), async (req, res) => {
     .where(and(eq(products.businessId, biz), eq(products.sku, sku), eq(products.isActive, true)));
   if (dup.length) throw new AppError("DUPLICATE_SKU", 409);
 
-  const now = new Date().toISOString();
+  const now = new Date();
   const [product] = await db
     .insert(products)
     .values({
@@ -138,7 +138,7 @@ productsRouter.put("/:id", requireAuth("manager"), async (req, res) => {
       input.lowStockThreshold !== undefined
         ? Math.max(0, Math.trunc(input.lowStockThreshold))
         : existing.lowStockThreshold,
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date(),
   };
   const [updated] = await db
     .update(products)
@@ -157,7 +157,7 @@ productsRouter.delete("/:id", requireAuth("manager"), async (req, res) => {
   if (!existing) throw new AppError("PRODUCT_NOT_FOUND", 404);
   await db
     .update(products)
-    .set({ isActive: false, updatedAt: new Date().toISOString() })
+    .set({ isActive: false, updatedAt: new Date() })
     .where(eq(products.id, existing.id));
   res.json({ success: true });
 });
@@ -183,7 +183,7 @@ productsRouter.post("/:id/adjust-stock", requireAuth("manager"), async (req: any
   const after = before + Math.trunc(parsed.data.quantityDelta);
   if (after < 0) throw new AppError("INSUFFICIENT_STOCK", 422, "Stock cannot go below zero");
 
-  const now = new Date().toISOString();
+  const now = new Date();
   const [updated] = await db
     .update(products)
     .set({ stockQuantity: after, updatedAt: now })

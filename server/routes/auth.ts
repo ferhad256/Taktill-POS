@@ -4,4 +4,4 @@ import { auth } from "../lib/auth";
 
 export const authRouter = Router();
 
-authRouter.all("/*", toNodeHandler(auth));
+authRouter.all("/:path*", toNodeHandler(auth));
