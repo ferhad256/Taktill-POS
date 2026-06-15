@@ -16,7 +16,6 @@ import {
   clearToken,
   getToken,
   setCashierToken,
-  setUserToken,
 } from "../lib/auth-client";
 
 const ROLE_RANK: Record<Role, number> = { cashier: 0, manager: 1, owner: 2 };
