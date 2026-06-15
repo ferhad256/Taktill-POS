@@ -729,7 +729,10 @@ if __name__ == '__main__':
     draw_auth_flow()
     draw_test_pyramid()
     draw_deployment_architecture()
-    draw_pos_mockup()
-    draw_dashboard_mockup()
+    # POS and Dashboard figures now use real app screenshots
+    # (diagrams/pos_real.png, pos_cart_real.png, dashboard_real.png),
+    # so the matplotlib UI mockups are no longer generated.
+    # draw_pos_mockup()
+    # draw_dashboard_mockup()
     draw_test_results()
     print(f"\nAll diagrams saved to: {OUTPUT_DIR}")

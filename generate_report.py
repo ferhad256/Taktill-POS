@@ -1,6 +1,7 @@
 from docx import Document
 from docx.shared import Inches, Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.section import WD_SECTION
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from copy import deepcopy
@@ -187,186 +188,149 @@ def add_heading_unnumbered(text):
 # ════════════════════════════════════════
 #              COVER PAGE
 # ════════════════════════════════════════
-for _ in range(6):
-    doc.add_paragraph()
+# ════════════════════════════════════════
+#        FRONT MATTER (ISBAT format)
+# ════════════════════════════════════════
+LOGO = os.path.join(DIAGRAM_DIR, 'isbat_logo.png')
+PROJECT_TITLE = 'Taktill POS: A Cloud-Native Point-of-Sale System for Retail Businesses'
+COVER_DATE = 'JUNE 2026'
 
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = p.add_run('FINAL YEAR PROJECT REPORT')
-run.font.name = 'Times New Roman'
-run.font.size = Pt(18)
-run.bold = True
+def _center(text, size=12, bold=False, italic=False, underline=False, sa=2, sb=0):
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = p.add_run(text)
+    r.font.name = 'Times New Roman'; r.font.size = Pt(size)
+    r.bold = bold; r.italic = italic; r.underline = underline
+    p.paragraph_format.space_after = Pt(sa); p.paragraph_format.space_before = Pt(sb)
+    return p
 
-doc.add_paragraph()
+def _logo(width=1.8):
+    if os.path.exists(LOGO):
+        p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p.add_run().add_picture(LOGO, width=Inches(width))
 
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = p.add_run('Taktill POS')
-run.font.name = 'Times New Roman'
-run.font.size = Pt(26)
-run.bold = True
+def _run(par, txt, bold=False):
+    r = par.add_run(txt); r.font.name = 'Times New Roman'; r.font.size = Pt(12); r.bold = bold
 
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = p.add_run('A Cloud-Native Point-of-Sale System for Retail Businesses')
-run.font.name = 'Times New Roman'
-run.font.size = Pt(14)
-run.italic = True
+def _set_pgnum(section, fmt, start=None):
+    sectPr = section._sectPr
+    for el in sectPr.findall(qn('w:pgNumType')):
+        sectPr.remove(el)
+    pg = OxmlElement('w:pgNumType'); pg.set(qn('w:fmt'), fmt)
+    if start is not None: pg.set(qn('w:start'), str(start))
+    sectPr.append(pg)
 
+def _footer_pagenum(section):
+    section.footer.is_linked_to_previous = False
+    p = section.footer.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    for r in list(p.runs):
+        r._r.getparent().remove(r._r)
+    run = p.add_run(); run.font.name = 'Times New Roman'; run.font.size = Pt(11)
+    b = OxmlElement('w:fldChar'); b.set(qn('w:fldCharType'), 'begin')
+    i = OxmlElement('w:instrText'); i.set(qn('xml:space'), 'preserve'); i.text = ' PAGE '
+    e = OxmlElement('w:fldChar'); e.set(qn('w:fldCharType'), 'end')
+    run._r.append(b); run._r.append(i); run._r.append(e)
+
+def _sig_table(left, right):
+    t = doc.add_table(rows=2, cols=2)
+    for j, lbl in enumerate([left, right]):
+        c = t.cell(0, j); c.text = ''
+        rr = c.paragraphs[0].add_run(lbl); rr.bold = True
+        rr.font.name = 'Times New Roman'; rr.font.size = Pt(12)
+        c2 = t.cell(1, j); c2.text = ''
+        rr2 = c2.paragraphs[0].add_run('……………………………………')
+        rr2.font.name = 'Times New Roman'; rr2.font.size = Pt(12)
+    return t
+
+def _toc_field():
+    p = doc.add_paragraph()
+    r = p.add_run()
+    b = OxmlElement('w:fldChar'); b.set(qn('w:fldCharType'), 'begin')
+    instr = OxmlElement('w:instrText'); instr.set(qn('xml:space'), 'preserve')
+    instr.text = 'TOC \\o "1-3" \\h \\z \\u'
+    sep = OxmlElement('w:fldChar'); sep.set(qn('w:fldCharType'), 'separate')
+    e = OxmlElement('w:fldChar'); e.set(qn('w:fldCharType'), 'end')
+    r._r.append(b); r._r.append(instr); r._r.append(sep); r._r.append(e)
+    ph = p.add_run('Right-click here and choose "Update Field" to generate the Table of Contents.')
+    ph.italic = True; ph.font.name = 'Times New Roman'; ph.font.size = Pt(11)
+
+# ── COVER PAGE (no page number) ──
 for _ in range(3):
     doc.add_paragraph()
+_center(PROJECT_TITLE, size=16, bold=True, sa=10)
+_center('A PROJECT REPORT', size=13, bold=True, sa=6)
+_center('Submitted by', size=12, bold=True, sa=4)
+_center('[STUDENT NAME(S) / REGISTRATION NUMBER]', size=12, bold=True, sa=10)
+_center('in partial fulfillment for the award of degree of', size=12, bold=True, italic=True, sa=4)
+_center('BACHELOR OF SCIENCE IN', size=13, bold=True, sa=2)
+_center('[DEGREE PROGRAMME]', size=13, bold=True, sa=8)
+_logo(1.7)
+_center('FACULTY OF INFORMATION AND', size=13, bold=True, sa=0, sb=10)
+_center('COMMUNICATION TECHNOLOGY', size=13, bold=True, sa=2)
+_center('ISBAT UNIVERSITY', size=13, bold=True, underline=True, sa=0)
+_center('A CHARTERED UNIVERSITY', size=11, sa=6)
+_center(COVER_DATE, size=13, bold=True)
 
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = p.add_run('Full Unit  \u2022  Final Report')
-run.font.name = 'Times New Roman'
-run.font.size = Pt(12)
-
-doc.add_paragraph()
-
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = p.add_run('Student: [Student\'s First and Last Name]')
-run.font.name = 'Times New Roman'
-run.font.size = Pt(12)
-
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = p.add_run('Supervisor: [Supervisor Name]')
-run.font.name = 'Times New Roman'
-run.font.size = Pt(12)
-
-for _ in range(2):
-    doc.add_paragraph()
-
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = p.add_run('A report submitted in part fulfilment of the degree of\n[Bachelor\'s Degree Name]')
-run.font.name = 'Times New Roman'
-run.font.size = Pt(12)
-
-doc.add_paragraph()
-
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = p.add_run('Isbat University Kampala')
-run.font.name = 'Times New Roman'
-run.font.size = Pt(12)
-
-doc.add_paragraph()
-
-p = doc.add_paragraph()
-p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = p.add_run(datetime.datetime.now().strftime('%B %d, %Y'))
-run.font.name = 'Times New Roman'
-run.font.size = Pt(12)
-
+# ── BONAFIDE CERTIFICATE (no page number) ──
 doc.add_page_break()
+_center('INTERNATIONAL BUSINESS SCIENCE AND TECHNOLOGY', size=12, bold=True, sa=0, sb=6)
+_center('UNIVERSITY', size=12, bold=True, sa=4)
+_center(COVER_DATE, size=12, bold=True, sa=8)
+_logo(2.3)
+_center('BONAFIDE CERTIFICATE', size=13, bold=True, sa=12, sb=10)
+p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+_run(p, 'Certified that this project report titled ')
+_run(p, PROJECT_TITLE, True)
+_run(p, ' is the bonafide work of ')
+_run(p, '[NAME OF STUDENT]', True)
+_run(p, ' who carried out this project under my supervision.')
+p.paragraph_format.space_after = Pt(36)
+_sig_table('HEAD OF DEPARTMENT', 'FACULTY IN CHARGE')
 
-# ════════════════════════════════════════
-#              DECLARATION
-# ════════════════════════════════════════
-add_heading_custom('Declaration', level=1)
-add_para('This report has been prepared on the basis of my own work. Where other published and unpublished source materials have been used, these have been acknowledged.', space_after=12)
+# ── Section break → FRONT MATTER (lower-roman, i, ii, iii ...) ──
+_sec_fm = doc.add_section(WD_SECTION.NEW_PAGE)
+_set_pgnum(_sec_fm, 'lowerRoman', 1)
+_footer_pagenum(_sec_fm)
 
-tbl = doc.add_table(rows=4, cols=2)
-tbl.style = 'Table Grid'
-labels = ['Word Count:', 'Student Name:', 'Date of Submission:', 'Signature:']
-for i, label in enumerate(labels):
-    cell0 = tbl.cell(i, 0)
-    cell0.text = ''
-    r0 = cell0.paragraphs[0].add_run(label)
-    r0.font.name = 'Times New Roman'
-    r0.font.size = Pt(12)
-    r0.bold = True
-    cell1 = tbl.cell(i, 1)
-    cell1.text = ''
-    r1 = cell1.paragraphs[0].add_run('[To be completed before submission]')
-    r1.font.name = 'Times New Roman'
-    r1.font.size = Pt(12)
-    r1.italic = True
+# DECLARATION (i)
+_logo(1.8)
+_h = add_heading_custom('DECLARATION', level=1); _h.alignment = WD_ALIGN_PARAGRAPH.CENTER
+p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+_run(p, 'I ')
+_run(p, '[NAME OF STUDENT]', True)
+_run(p, ' do hereby declare that to the best of my knowledge, the matter embodied in this project report is original, and has not been submitted for any academic award by any student to any other University or Institution for the award of Degree.')
+p.paragraph_format.space_after = Pt(36)
+_sig_table('SIGNATURE', 'DATE')
 
+# ACKNOWLEDGMENT (ii)
 doc.add_page_break()
+add_heading_custom('ACKNOWLEDGMENT', level=1)
+add_para('First and foremost, I would like to acknowledge my deepest gratitude to the Almighty God for the blessings, guidance, protection, and grace throughout this academic endeavour.', align=WD_ALIGN_PARAGRAPH.JUSTIFY, first_line_indent=1.27)
+add_para('I would like to thank my supervisor, [Supervisor Name], for the valuable guidance, support, and constructive feedback that made the completion of this project possible. My sincere appreciation also goes to the faculty and staff of the Faculty of Information and Communication Technology at ISBAT University.', align=WD_ALIGN_PARAGRAPH.JUSTIFY, first_line_indent=1.27)
+add_para('I equally express my special thanks to my parents and guardians for their moral and financial support throughout my academic journey.', align=WD_ALIGN_PARAGRAPH.JUSTIFY, first_line_indent=1.27)
+add_para('Finally, I am grateful to my friends and course mates whose efforts and encouragement towards completing this academic project cannot be underestimated.', align=WD_ALIGN_PARAGRAPH.JUSTIFY, first_line_indent=1.27)
 
-# ════════════════════════════════════════
-#             TABLE OF CONTENTS
-# ════════════════════════════════════════
-add_heading_custom('Table of Contents', level=1)
-
-toc_items = [
-    ('Abstract', 4),
-    ('Project Specification', 5),
-    ('Chapter 1: Introduction', 6),
-    ('    1.1 Background', 6),
-    ('    1.2 Problem Statement', 6),
-    ('    1.3 Aims and Objectives', 7),
-    ('    1.4 Scope', 7),
-    ('Chapter 2: Technologies and Tools', 8),
-    ('    2.1 Frontend Technologies', 8),
-    ('    2.2 Backend Technologies', 9),
-    ('    2.3 Database Technologies', 10),
-    ('    2.4 Development and Deployment Tools', 11),
-    ('Chapter 3: System Analysis and Design', 12),
-    ('    3.1 Requirements Analysis', 12),
-    ('    3.2 System Architecture', 13),
-    ('    3.3 Database Design', 14),
-    ('    3.4 API Design', 16),
-    ('    3.5 User Interface Design', 16),
-    ('Chapter 4: Implementation', 18),
-    ('    4.1 Backend Implementation', 18),
-    ('    4.2 Frontend Implementation', 20),
-    ('    4.3 Authentication System', 20),
-    ('    4.4 Shopping Cart and Sales Processing', 21),
-    ('Chapter 5: Testing and Evaluation', 23),
-    ('    5.1 Testing Strategy', 23),
-    ('    5.2 Unit Testing', 23),
-    ('    5.3 Integration Testing', 24),
-    ('    5.4 End-to-End Testing', 25),
-    ('    5.5 User Acceptance Testing', 26),
-    ('Chapter 6: Deployment and Maintenance', 28),
-    ('    6.1 Deployment Architecture', 28),
-    ('    6.2 Development Workflow', 29),
-    ('    6.3 Maintenance Considerations', 29),
-    ('Chapter 7: Conclusion and Future Work', 31),
-    ('    7.1 Achievements', 31),
-    ('    7.2 Challenges', 32),
-    ('    7.3 Future Work', 32),
-    ('Bibliography', 34),
-]
-
-for item, page in toc_items:
-    p = doc.add_paragraph()
-    indent = ''
-    display = item
-    if item.startswith('    '):
-        indent = '     '
-        display = item.strip()
-    run = p.add_run(f'{indent}{display}')
-    run.font.name = 'Times New Roman'
-    run.font.size = Pt(12)
-    tab_stops = p.paragraph_format.tab_stops
-    tab_stops.add_tab_stop(Cm(15), alignment=WD_ALIGN_PARAGRAPH.RIGHT)
-    run2 = p.add_run(f'\t{page}')
-    run2.font.name = 'Times New Roman'
-    run2.font.size = Pt(12)
-    p.paragraph_format.space_after = Pt(2)
-
+# ABSTRACT (iii)
 doc.add_page_break()
+_h = add_heading_custom('ABSTRACT', level=1); _h.alignment = WD_ALIGN_PARAGRAPH.CENTER
+add_para('This report presents the design, implementation, and evaluation of Taktill POS, a cloud-native, web-based Point-of-Sale (POS) system tailored for small and medium-sized retail businesses in East Africa. The system addresses critical challenges faced by traditional retail operations, including manual inventory tracking, fragmented sales recording, limited reporting capabilities, and the absence of role-based access control for staff management.', align=WD_ALIGN_PARAGRAPH.JUSTIFY)
+add_para('Taktill POS is built using a modern web technology stack comprising React 19 for the frontend, Node.js with Express 5 for the backend REST API, PostgreSQL for data persistence, and Drizzle ORM for type-safe database operations. The system features a complete point-of-sale interface with product search, discount management, and receipt generation, comprehensive inventory management with stock adjustment auditing, role-based authentication for owners, managers, and cashiers, and rich reporting capabilities including daily sales summaries, product-level sales analytics, and dashboard visualisations using ApexCharts.', align=WD_ALIGN_PARAGRAPH.JUSTIFY)
+add_para('The application follows a three-tier role-based access control model: cashiers can process sales with discount caps, managers have full access to inventory and reporting, and owners maintain administrative control over users, cashiers, and business settings. All sales are processed atomically using database transactions with row-level locking to ensure data integrity under concurrent access, and monetary values are handled using decimal arithmetic throughout to avoid floating-point precision errors.', align=WD_ALIGN_PARAGRAPH.JUSTIFY)
+add_para('The system is deployed on Vercel\'s serverless platform with Neon PostgreSQL for production, while supporting SQLite for local development. Comprehensive testing including unit tests with Vitest, API integration tests with Supertest, and end-to-end tests with Playwright ensures system reliability. The evaluation demonstrates that Taktill POS meets all specified requirements, providing a robust, scalable, and user-friendly retail management solution suitable for deployment across East African retail businesses.', align=WD_ALIGN_PARAGRAPH.JUSTIFY)
+add_para('KEYWORDS', bold=True, space_before=10)
+add_para('Point-of-Sale, Retail Management, React, Express, PostgreSQL, Drizzle ORM, Cloud Deployment, Role-Based Access Control, Inventory Management, Serverless', italic=True)
 
-# ════════════════════════════════════════
-#                ABSTRACT
-# ════════════════════════════════════════
-add_heading_custom('Abstract', level=1)
-add_para('This report presents the design, implementation, and evaluation of Taktill POS, a cloud-native, web-based Point-of-Sale (POS) system tailored for small and medium-sized retail businesses in East Africa. The system addresses critical challenges faced by traditional retail operations, including manual inventory tracking, fragmented sales recording, limited reporting capabilities, and the absence of role-based access control for staff management.', first_line_indent=1.27)
-add_para('Taktill POS is built using a modern web technology stack comprising React 19 for the frontend, Node.js with Express 5 for the backend REST API, PostgreSQL for data persistence, and Drizzle ORM for type-safe database operations. The system features a complete point-of-sale interface with product search, barcode scanning support, discount management, and receipt generation. It includes comprehensive inventory management with stock adjustment auditing, role-based authentication for owners, managers, and cashiers, and rich reporting capabilities including daily sales summaries, product-level sales analytics, and dashboard visualisations using ApexCharts.', first_line_indent=1.27)
-add_para('The application follows a three-tier role-based access control model: Cashiers can process sales with discount caps, Managers have full access to inventory and reporting, and Owners maintain administrative control over users, cashiers, and business settings. All sales are processed atomically using database transactions with row-level locking to ensure data integrity under concurrent access. Monetary values are handled using decimal arithmetic throughout to avoid floating-point precision errors.', first_line_indent=1.27)
-add_para('The system is deployed on Vercel\'s serverless platform with Neon PostgreSQL for production, while supporting SQLite for local development. Comprehensive testing including unit tests using Vitest, API integration tests with Supertest, and end-to-end tests with Playwright ensures system reliability. The evaluation demonstrates that Taktill POS meets all specified requirements, providing a robust, scalable, and user-friendly retail management solution suitable for deployment across East African retail businesses.', first_line_indent=1.27)
-
+# TABLE OF CONTENTS (iv)
 doc.add_page_break()
+_center('TABLE OF CONTENTS', size=14, bold=True, sa=12, sb=6)
+_toc_field()
 
-# ════════════════════════════════════════
-#         PROJECT SPECIFICATION
-# ════════════════════════════════════════
+# ── Section break → BODY (decimal, 1, 2, 3 ...) ──
+_sec_body = doc.add_section(WD_SECTION.NEW_PAGE)
+_set_pgnum(_sec_body, 'decimal', 1)
+_footer_pagenum(_sec_body)
+
 add_heading_custom('Project Specification', level=1)
 add_para('Project Title:', bold=True)
 add_para('Taktill POS \u2014 A Cloud-Native Point-of-Sale System for Retail Businesses')
@@ -662,9 +626,9 @@ add_para('The main POS screen is the most critical interface in the system, desi
 add_mixed_para([('Dashboard. ', True)], space_before=6)
 add_para('The dashboard provides a high-level summary of business performance through a set of metric cards displaying today\'s revenue, number of sales, low-stock product count, and total active products. A line chart visualises the last 7 days of revenue using ApexCharts, providing immediate visibility into recent performance trends. The dashboard is the default landing page for managers and owners after login.', first_line_indent=1.27)
 
-add_image('pos_mockup.png', 'POS Interface Mockup')
+add_image('pos_real.png', 'POS Interface (Live Application)')
 
-add_image('dashboard_mockup.png', 'Dashboard Mockup')
+add_image('dashboard_real.png', 'Taktill Dashboard (Live Application)')
 
 doc.add_page_break()
 
@@ -744,7 +708,7 @@ add_para('The discount system implements the business rules defined in the syste
 add_mixed_para([('Sale Completion. ', True)], space_before=6)
 add_para('When the cashier completes a sale by clicking the checkout button and confirming, the frontend constructs the complete sale payload and sends a POST request to /sales. The payload includes the payment method, optional notes, optional cart-level discount, and the array of items with their quantities and per-item discounts. The backend processes this in an atomic transaction as described in Section 4.1. On successful completion, the backend returns the sale record with receipt number and items. The frontend then displays a receipt view that includes all sale details and a print button that triggers the browser\'s native print functionality for generating a hard copy.', first_line_indent=1.27)
 
-add_image('pos_mockup.png', 'Cart and Checkout Interface (see POS Mockup above for full layout)')
+add_image('pos_cart_real.png', 'Cart and Checkout Panel (Live Application)', width=2.8)
 
 doc.add_page_break()
 
