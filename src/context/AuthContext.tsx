@@ -63,8 +63,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       principal,
       loading,
       async loginEmail(email, password) {
-        const { token, principal: p } = await signInEmail(email, password);
-        setUserToken(token);
+        const { principal: p } = await signInEmail(email, password);
+        clearToken(); // Clear any existing cashier token
         setPrincipal(p);
         return p;
       },

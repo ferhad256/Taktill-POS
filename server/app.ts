@@ -16,6 +16,36 @@ import { settingsRouter } from "./routes/settings.js";
 export const app = express();
 app.use(express.json());
 
+// CORS middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    process.env.APP_URL || "http://localhost:5173",
+    "http://localhost:5173",
+    "https://taktill-pos.vercel.app",
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
+  
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  
+  next();
+});
+
 // Mount routes under both /api/v1 (PRD §5) and /api (backward compat)
 for (const base of ["/api/v1", "/api"]) {
   app.get(`${base}/health`, (_req, res) => res.json({ success: true, data: "ok" }));

@@ -41,12 +41,13 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = getToken();
+  const cashierToken = sessionStorage.getItem(CASHIER_TOKEN_KEY);
   const res = await fetch(`${API}${path}`, {
     ...options,
+    credentials: "include", // Important for sending cookies (better-auth sessions)
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(cashierToken ? { Authorization: `Bearer ${cashierToken}` } : {}),
       ...(options.headers ?? {}),
     },
   });
