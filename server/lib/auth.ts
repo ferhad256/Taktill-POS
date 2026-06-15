@@ -27,6 +27,13 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false,
     minPasswordLength: 8,
+    // Passwords are hashed with bcrypt (see hashPassword) in the seed and the
+    // /users endpoint, so Better Auth must hash/verify with bcrypt too —
+    // otherwise its default scrypt verifier rejects every stored hash.
+    password: {
+      hash: (password) => bcrypt.hashSync(password, 12),
+      verify: ({ password, hash }) => bcrypt.compareSync(password, hash),
+    },
   },
   session: {
     expiresIn: 60 * 60 * 8, // 8 hours

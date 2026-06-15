@@ -74,19 +74,20 @@ export async function seedIfEmpty(): Promise<void> {
     },
   ]);
 
-  // Better Auth stores passwords in the accounts table (providerId = "email")
+  // Better Auth looks up email/password logins by providerId "credential"
+  // with accountId === the user id (not the email).
   await db.insert(accounts).values([
     {
       id: "acc-owner",
-      accountId: "owner@taktill.app",
-      providerId: "email",
+      accountId: "usr-owner",
+      providerId: "credential",
       userId: "usr-owner",
       password: hashPassword("owner1234"),
     },
     {
       id: "acc-manager",
-      accountId: "manager@taktill.app",
-      providerId: "email",
+      accountId: "usr-manager",
+      providerId: "credential",
       userId: "usr-manager",
       password: hashPassword("manager1234"),
     },
