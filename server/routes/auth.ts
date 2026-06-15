@@ -12,18 +12,24 @@ authRouter.post("/sign-in/email", async (req, res) => {
     throw new AppError("INVALID_CREDENTIALS", 401);
   }
 
-  const result = await auth.api.signInEmail({
+  const result = (await auth.api.signInEmail({
     body: { email, password },
-  });
+  })) as unknown as {
+    token: string;
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role?: string;
+      businessId?: string;
+    };
+  };
 
-  if (!result.session || !result.user) {
+  if (!result.token || !result.user) {
     throw new AppError("INVALID_CREDENTIALS", 401);
   }
 
-  const u = result.user as typeof result.user & {
-    role?: string;
-    businessId?: string;
-  };
+  const u = result.user;
 
   const principal: Principal = {
     kind: "user",
@@ -37,7 +43,7 @@ authRouter.post("/sign-in/email", async (req, res) => {
   res.json({
     success: true,
     data: {
-      token: result.session.token,
+      token: result.token,
       principal,
     },
   });
