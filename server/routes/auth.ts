@@ -12,9 +12,12 @@ authRouter.post("/sign-in/email", async (req, res) => {
     throw new AppError("INVALID_CREDENTIALS", 401);
   }
 
-  const result = (await auth.api.signInEmail({
+  const { headers, response } = await auth.api.signInEmail({
     body: { email, password },
-  })) as unknown as {
+    returnHeaders: true,
+  });
+
+  const result = response as unknown as {
     token: string;
     user: {
       id: string;
@@ -28,6 +31,11 @@ authRouter.post("/sign-in/email", async (req, res) => {
   if (!result.token || !result.user) {
     throw new AppError("INVALID_CREDENTIALS", 401);
   }
+
+  // Forward Better Auth's session cookie so subsequent requests (which use
+  // cookie-based getSession) actually authenticate instead of 401ing.
+  const setCookies = headers.getSetCookie();
+  if (setCookies.length) res.setHeader("Set-Cookie", setCookies);
 
   const u = result.user;
 
@@ -76,9 +84,13 @@ authRouter.get("/session", async (req, res) => {
 });
 
 authRouter.post("/sign-out", async (req, res) => {
-  await auth.api.signOut({
+  const { headers } = await auth.api.signOut({
     headers: fromNodeHeaders(req.headers),
+    returnHeaders: true,
   });
+  // Forward the cookie-clearing header so the browser drops the session.
+  const setCookies = headers.getSetCookie();
+  if (setCookies.length) res.setHeader("Set-Cookie", setCookies);
   res.json({ success: true });
 });
 
