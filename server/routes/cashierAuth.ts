@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { db } from "../db";
-import { cashiers } from "../db/schema";
-import { cashierLogin, logoutCashier, resolveCashier } from "../lib/auth";
-import { AppError } from "../lib/errors";
+import { db } from "../db/index.js";
+import { cashiers } from "../db/schema.js";
+import { cashierLogin, logoutCashier, resolveCashier } from "../lib/auth.js";
+import { AppError } from "../lib/errors.js";
 
 export const cashierAuthRouter = Router();
 

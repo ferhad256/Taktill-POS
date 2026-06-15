@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db";
-import { products, stockAdjustments } from "../db/schema";
-import { requireAuth } from "../middleware/requireAuth";
-import { AppError } from "../lib/errors";
-import { d } from "../lib/money";
+import { db } from "../db/index.js";
+import { products, stockAdjustments } from "../db/schema.js";
+import { requireAuth } from "../middleware/requireAuth.js";
+import { AppError } from "../lib/errors.js";
+import { d } from "../lib/money.js";
 
 export const productsRouter = Router();
 

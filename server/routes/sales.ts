@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db";
-import { saleItems, sales } from "../db/schema";
-import { requireAuth } from "../middleware/requireAuth";
-import { completeSale } from "../services/sales";
-import { AppError } from "../lib/errors";
-import { byCreatedAtDesc, toDateStr } from "../lib/date";
+import { db } from "../db/index.js";
+import { saleItems, sales } from "../db/schema.js";
+import { requireAuth } from "../middleware/requireAuth.js";
+import { completeSale } from "../services/sales.js";
+import { AppError } from "../lib/errors.js";
+import { byCreatedAtDesc, toDateStr } from "../lib/date.js";
 
 export const salesRouter = Router();
 

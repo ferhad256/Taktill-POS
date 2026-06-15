@@ -3,10 +3,10 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { eq } from "drizzle-orm";
-import { db } from "../db";
-import * as schema from "../db/schema";
-import { cashierSessions, cashiers } from "../db/schema";
-import { AppError } from "./errors";
+import { db } from "../db/index.js";
+import * as schema from "../db/schema.js";
+import { cashierSessions, cashiers } from "../db/schema.js";
+import { AppError } from "./errors.js";
 
 // ── Better Auth (Owner / Manager email + password) ─────────────────
 export const auth = betterAuth({

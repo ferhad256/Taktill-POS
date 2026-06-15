@@ -1,11 +1,13 @@
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
+
+type DecimalValue = string | number | bigint | Decimal;
 
 export interface Discount {
   type: "percent" | "flat";
   value: number;
 }
 
-export function d(value: Decimal.Value): Decimal {
+export function d(value: DecimalValue): Decimal {
   return new Decimal(value || 0);
 }
 
@@ -16,5 +18,5 @@ export function calcDiscount(base: Decimal, discount?: Discount): Decimal {
     discount.type === "percent"
       ? base.times(discount.value).div(100)
       : d(discount.value);
-  return Decimal.min(raw, base);
+  return raw.lessThanOrEqualTo(base) ? raw : base;
 }

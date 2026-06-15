@@ -3,7 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "../db";
+import { db } from "../db/index.js";
 import {
   businesses,
   cashierSessions,
@@ -14,11 +14,11 @@ import {
   sessions,
   stockAdjustments,
   users,
-} from "../db/schema";
-import { requireAuth } from "../middleware/requireAuth";
-import { hashPassword } from "../lib/auth";
-import { AppError } from "../lib/errors";
-import { seedIfEmpty } from "../seed";
+} from "../db/schema.js";
+import { requireAuth } from "../middleware/requireAuth.js";
+import { hashPassword } from "../lib/auth.js";
+import { AppError } from "../lib/errors.js";
+import { seedIfEmpty } from "../seed.js";
 
 export const settingsRouter = Router();
 

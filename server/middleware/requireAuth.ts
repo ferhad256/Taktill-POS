@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { fromNodeHeaders } from "better-auth/node";
-import { auth, resolveCashier, type Principal } from "../lib/auth";
+import { auth, resolveCashier, type Principal } from "../lib/auth.js";
 
 const ROLE_RANK: Record<string, number> = { cashier: 0, manager: 1, owner: 2 };
 

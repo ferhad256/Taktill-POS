@@ -4,14 +4,14 @@ import express, {
   type Response,
 } from "express";
 import "./db"; // initialise DB + DDL
-import { AppError } from "./lib/errors";
-import { rateLimit } from "./middleware/rateLimit";
-import { authRouter } from "./routes/auth";
-import { cashierAuthRouter } from "./routes/cashierAuth";
-import { productsRouter } from "./routes/products";
-import { salesRouter } from "./routes/sales";
-import { reportsRouter } from "./routes/reports";
-import { settingsRouter } from "./routes/settings";
+import { AppError } from "./lib/errors.js";
+import { rateLimit } from "./middleware/rateLimit.js";
+import { authRouter } from "./routes/auth.js";
+import { cashierAuthRouter } from "./routes/cashierAuth.js";
+import { productsRouter } from "./routes/products.js";
+import { salesRouter } from "./routes/sales.js";
+import { reportsRouter } from "./routes/reports.js";
+import { settingsRouter } from "./routes/settings.js";
 
 export const app = express();
 app.use(express.json());

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { AppError } from "../lib/errors";
+import { AppError } from "../lib/errors.js";
 
 interface Entry {
   count: number;

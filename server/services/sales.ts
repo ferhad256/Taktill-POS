@@ -1,9 +1,9 @@
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 import { and, eq, like } from "drizzle-orm";
-import { db } from "../db";
-import { products, saleItems, sales } from "../db/schema";
-import { calcDiscount, d, type Discount } from "../lib/money";
-import { AppError } from "../lib/errors";
+import { db } from "../db/index.js";
+import { products, saleItems, sales } from "../db/schema.js";
+import { calcDiscount, d, type Discount } from "../lib/money.js";
+import { AppError } from "../lib/errors.js";
 
 export interface SaleItemInput {
   productId: string;

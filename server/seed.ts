@@ -1,14 +1,15 @@
 import crypto from "crypto";
-import { db } from "./db";
+import { db } from "./db/index.js";
 import {
+  accounts,
   businesses,
   cashiers,
   products,
   saleItems,
   sales,
   users,
-} from "./db/schema";
-import { hashPassword } from "./lib/auth";
+} from "./db/schema.js";
+import { hashPassword } from "./lib/auth.js";
 import bcrypt from "bcryptjs";
 
 const BUSINESS_ID = "biz-0001";
@@ -60,7 +61,7 @@ export async function seedIfEmpty(): Promise<void> {
       businessId: BUSINESS_ID,
       name: "Amina Owusu",
       email: "owner@taktill.app",
-      password: hashPassword("owner1234"),
+      emailVerified: true,
       role: "owner",
     },
     {
@@ -68,10 +69,28 @@ export async function seedIfEmpty(): Promise<void> {
       businessId: BUSINESS_ID,
       name: "David Mukasa",
       email: "manager@taktill.app",
-      password: hashPassword("manager1234"),
+      emailVerified: true,
       role: "manager",
     },
-  ] as any);
+  ]);
+
+  // Better Auth stores passwords in the accounts table (providerId = "email")
+  await db.insert(accounts).values([
+    {
+      id: "acc-owner",
+      accountId: "owner@taktill.app",
+      providerId: "email",
+      userId: "usr-owner",
+      password: hashPassword("owner1234"),
+    },
+    {
+      id: "acc-manager",
+      accountId: "manager@taktill.app",
+      providerId: "email",
+      userId: "usr-manager",
+      password: hashPassword("manager1234"),
+    },
+  ]);
 
   await db.insert(cashiers).values([
     {

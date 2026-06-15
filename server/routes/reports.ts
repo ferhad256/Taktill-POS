@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import Decimal from "decimal.js";
-import { db } from "../db";
-import { products, saleItems, sales } from "../db/schema";
-import { requireAuth } from "../middleware/requireAuth";
-import { d } from "../lib/money";
-import { toDateStr } from "../lib/date";
+import { Decimal } from "decimal.js";
+import { db } from "../db/index.js";
+import { products, saleItems, sales } from "../db/schema.js";
+import { requireAuth } from "../middleware/requireAuth.js";
+import { d } from "../lib/money.js";
+import { toDateStr } from "../lib/date.js";
 
 export const reportsRouter = Router();
 

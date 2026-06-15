@@ -5,6 +5,6 @@
 //     DATABASE_URL, BETTER_AUTH_SECRET, API_PORT, APP_URL.
 
 import "../server/env";
-import { app } from "../server/app";
+import { app } from "../server/app.js";
 
 export default app;
