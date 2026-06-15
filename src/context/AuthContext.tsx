@@ -14,7 +14,6 @@ import {
 } from "../data/api";
 import {
   clearToken,
-  getToken,
   setCashierToken,
 } from "../lib/auth-client";
 
@@ -35,14 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [principal, setPrincipal] = useState<Principal | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session from the stored token on mount.
+  // Restore session on mount. Owner/manager sessions live in a Better Auth
+  // cookie (no stored token), so always ask the server — getSession reads the
+  // cookie and returns null when there's nothing to restore.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!getToken()) {
-        if (!cancelled) setLoading(false);
-        return;
-      }
       try {
         const p = await getSession();
         if (!cancelled) setPrincipal(p);
