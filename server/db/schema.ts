@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { sql } from "drizzle-orm";
 import {
   pgTable,
@@ -76,7 +77,7 @@ export const verifications = pgTable("verifications", {
 
 // ── BillPOS app tables ─────────────────────────────────────────────
 export const businesses = pgTable("businesses", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   name: varchar("name", { length: 200 }).notNull(),
   address: text("address"),
   phone: varchar("phone", { length: 20 }),
@@ -86,7 +87,7 @@ export const businesses = pgTable("businesses", {
 });
 
 export const cashiers = pgTable("cashiers", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   businessId: uuid("business_id")
     .notNull()
     .references(() => businesses.id, { onDelete: "cascade" }),
@@ -97,7 +98,7 @@ export const cashiers = pgTable("cashiers", {
 });
 
 export const cashierSessions = pgTable("cashier_sessions", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   cashierId: uuid("cashier_id")
     .notNull()
     .references(() => cashiers.id, { onDelete: "cascade" }),
@@ -107,7 +108,7 @@ export const cashierSessions = pgTable("cashier_sessions", {
 });
 
 export const products = pgTable("products", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   businessId: uuid("business_id")
     .notNull()
     .references(() => businesses.id, { onDelete: "cascade" }),
@@ -127,7 +128,7 @@ export const products = pgTable("products", {
 }));
 
 export const sales = pgTable("sales", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   businessId: uuid("business_id")
     .notNull()
     .references(() => businesses.id),
@@ -149,7 +150,7 @@ export const sales = pgTable("sales", {
 }));
 
 export const saleItems = pgTable("sale_items", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   saleId: uuid("sale_id")
     .notNull()
     .references(() => sales.id, { onDelete: "cascade" }),
@@ -169,7 +170,7 @@ export const saleItems = pgTable("sale_items", {
 });
 
 export const stockAdjustments = pgTable("stock_adjustments", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id").primaryKey().$defaultFn(() => randomUUID()),
   productId: uuid("product_id")
     .notNull()
     .references(() => products.id),

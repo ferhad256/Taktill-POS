@@ -9,11 +9,11 @@ import { cn } from "../../lib/utils";
 import DiscountControl from "./DiscountControl";
 import { TrashBinIcon } from "../../icons";
 
-const PAYMENTS: { value: PaymentMethod; label: string }[] = [
-  { value: "cash", label: "Cash" },
-  { value: "mobile_money", label: "Mobile Money" },
-  { value: "card", label: "Card" },
-  { value: "other", label: "Other" },
+const PAYMENTS: { value: PaymentMethod; label: string; short: string }[] = [
+  { value: "cash", label: "Cash", short: "Cash" },
+  { value: "mobile_money", label: "Mobile Money", short: "MoMo" },
+  { value: "card", label: "Card", short: "Card" },
+  { value: "other", label: "Other", short: "Other" },
 ];
 
 export default function CartPanel({
@@ -209,7 +209,7 @@ export default function CartPanel({
       </div>
 
       {/* Footer */}
-      <div className="space-y-4 border-t border-gray-200 p-4 dark:border-gray-800">
+      <div className="shrink-0 space-y-3 border-t border-gray-200 p-4 dark:border-gray-800">
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-500 dark:text-gray-400">
             Cart discount
@@ -222,33 +222,29 @@ export default function CartPanel({
           />
         </div>
 
-        <div>
-          <p className="mb-1.5 text-sm text-gray-500 dark:text-gray-400">
-            Payment method
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {PAYMENTS.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => setPayment(p.value)}
-                className={cn(
-                  "rounded-lg border px-3 py-2 text-sm font-medium transition",
-                  paymentMethod === p.value
-                    ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
-                    : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-white/5",
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {PAYMENTS.map((p) => (
+            <button
+              key={p.value}
+              onClick={() => setPayment(p.value)}
+              title={p.label}
+              className={cn(
+                "truncate rounded-lg border px-1 py-2 text-xs font-medium transition",
+                paymentMethod === p.value
+                  ? "border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
+                  : "border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-white/5",
+              )}
+            >
+              {p.short}
+            </button>
+          ))}
         </div>
 
         <input
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Note (optional)"
-          className="h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+          className="h-9 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
         />
 
         <div className="space-y-1 text-sm">
