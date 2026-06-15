@@ -34,3 +34,9 @@ server/.env.local
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch/debug scripts (do not commit)
+__*.mjs
+__*.mts
+__*.log
+__*.txt

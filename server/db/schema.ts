@@ -132,9 +132,10 @@ export const sales = pgTable("sales", {
   businessId: uuid("business_id")
     .notNull()
     .references(() => businesses.id),
-  cashierId: uuid("cashier_id")
-    .notNull()
-    .references(() => cashiers.id),
+  // The actor who rang up the sale — may be a cashier OR an owner/manager
+  // using the POS, so this is not constrained to the cashiers table.
+  // cashierName holds the display-name snapshot.
+  cashierId: text("cashier_id").notNull(),
   cashierName: text("cashier_name").notNull(),
   receiptNumber: varchar("receipt_number", { length: 30 }).notNull(),
   subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull(),
