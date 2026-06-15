@@ -1,55 +1,49 @@
-import { ReactNode } from "react";
+import { type ButtonHTMLAttributes } from "react";
+import Spinner from "../Spinner";
+import { cn } from "../../../lib/utils";
 
-interface ButtonProps {
-  children: ReactNode; // Button text or content
-  size?: "sm" | "md"; // Button size
-  variant?: "primary" | "outline"; // Button variant
-  startIcon?: ReactNode; // Icon before the text
-  endIcon?: ReactNode; // Icon after the text
-  onClick?: () => void; // Click handler
-  disabled?: boolean; // Disabled state
-  className?: string; // Disabled state
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "secondary" | "danger" | "ghost";
+  size?: "sm" | "md" | "lg";
+  loading?: boolean;
 }
 
-const Button: React.FC<ButtonProps> = ({
-  children,
-  size = "md",
-  variant = "primary",
-  startIcon,
-  endIcon,
-  onClick,
-  className = "",
-  disabled = false,
-}) => {
-  // Size Classes
-  const sizeClasses = {
-    sm: "px-4 py-3 text-sm",
-    md: "px-5 py-3.5 text-sm",
-  };
-
-  // Variant Classes
-  const variantClasses = {
-    primary:
-      "bg-brand-500 text-white shadow-theme-xs hover:bg-brand-600 disabled:bg-brand-300",
-    outline:
-      "bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700 dark:hover:bg-white/[0.03] dark:hover:text-gray-300",
-  };
-
-  return (
-    <button
-      className={`inline-flex items-center justify-center gap-2 rounded-lg transition ${className} ${
-        sizeClasses[size]
-      } ${variantClasses[variant]} ${
-        disabled ? "cursor-not-allowed opacity-50" : ""
-      }`}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {startIcon && <span className="flex items-center">{startIcon}</span>}
-      {children}
-      {endIcon && <span className="flex items-center">{endIcon}</span>}
-    </button>
-  );
+const variants = {
+  primary: "bg-brand text-white hover:bg-brand-dark",
+  secondary: "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50",
+  danger: "bg-red-600 text-white hover:bg-red-700",
+  ghost: "text-gray-600 hover:bg-gray-100",
 };
 
-export default Button;
+const sizes = {
+  sm: "px-3 py-1.5 text-sm",
+  md: "px-4 py-2 text-sm",
+  lg: "px-6 py-3 text-base",
+};
+
+export default function Button({
+  variant = "primary",
+  size = "md",
+  loading,
+  disabled,
+  children,
+  className,
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      disabled={disabled || loading}
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-lg font-medium",
+        "transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
+        variants[variant],
+        sizes[size],
+        className,
+      )}
+      {...props}
+    >
+      {loading && <Spinner size="sm" />}
+      {children}
+    </button>
+  );
+}

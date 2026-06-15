@@ -16,7 +16,10 @@ function businessId(req: any): string {
 // ── List / read (cashier+) ─────────────────────────────────────────
 productsRouter.get("/", requireAuth(), async (req, res) => {
   const { search, category, activeOnly } = req.query as Record<string, string>;
-  let rows = await db.select().from(products).where(eq(products.businessId, businessId(req)));
+  let rows = await db
+    .select()
+    .from(products)
+    .where(eq(products.businessId, businessId(req)));
   if (activeOnly === "true") rows = rows.filter((p) => p.isActive);
   if (category && category !== "all") rows = rows.filter((p) => p.category === category);
   if (search) {

@@ -1,5 +1,7 @@
 import {
   pgTable,
+  pgEnum,
+  uniqueIndex,
   uuid,
   text,
   boolean,
@@ -7,6 +9,14 @@ import {
   numeric,
   timestamp,
 } from "drizzle-orm/pg-core";
+
+// ── Enums (PRD §4.2) ──────────────────────────────────────────────
+export const roleEnum          = pgEnum('role', ['owner', 'manager']);
+export const paymentMethodEnum = pgEnum('payment_method',
+  ['cash', 'mobile_money', 'card', 'other']);
+export const adjustReasonEnum  = pgEnum('adjustment_reason',
+  ['restock', 'damaged', 'expired', 'correction', 'other']);
+export const discountTypeEnum  = pgEnum('discount_type', ['percent', 'flat']);
 
 // ── Better Auth tables (do NOT rename the camelCase keys) ──────────
 export const users = pgTable("users", {
@@ -110,12 +120,18 @@ export const products = pgTable("products", {
   isActive: boolean("is_active").notNull().default(true),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
-});
+}, (table) => ({
+  skuIdx: uniqueIndex("idx_products_sku").on(table.businessId, table.sku),
+}));
 
 export const sales = pgTable("sales", {
   id: uuid("id").primaryKey().defaultRandom(),
-  businessId: uuid("business_id").notNull(),
-  cashierId: uuid("cashier_id").notNull(),
+  businessId: uuid("business_id")
+    .notNull()
+    .references(() => businesses.id),
+  cashierId: uuid("cashier_id")
+    .notNull()
+    .references(() => cashiers.id),
   cashierName: text("cashier_name").notNull(),
   receiptNumber: text("receipt_number").notNull(),
   subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull(),
@@ -126,14 +142,18 @@ export const sales = pgTable("sales", {
   paymentMethod: text("payment_method").notNull(),
   notes: text("notes"),
   createdAt: text("created_at").notNull(),
-});
+}, (table) => ({
+  receiptIdx: uniqueIndex("idx_sales_receipt").on(table.businessId, table.receiptNumber),
+}));
 
 export const saleItems = pgTable("sale_items", {
   id: uuid("id").primaryKey().defaultRandom(),
   saleId: uuid("sale_id")
     .notNull()
     .references(() => sales.id, { onDelete: "cascade" }),
-  productId: uuid("product_id").notNull(),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id),
   productName: text("product_name").notNull(), // snapshot
   productSku: text("product_sku").notNull(), // snapshot
   quantity: integer("quantity").notNull(),

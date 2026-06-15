@@ -29,10 +29,10 @@ const saleSchema = z.object({
 });
 
 // Create sale (cashier+)
-salesRouter.post("/", requireAuth(), (req: any, res) => {
+salesRouter.post("/", requireAuth(), async (req: any, res) => {
   const parsed = saleSchema.safeParse(req.body);
   if (!parsed.success) throw new AppError("VALIDATION_ERROR", 400, parsed.error.issues);
-  const result = completeSale({
+  const result = await completeSale({
     businessId: req.principal.businessId,
     cashierId: req.principal.id,
     cashierName: req.principal.name,
@@ -43,31 +43,56 @@ salesRouter.post("/", requireAuth(), (req: any, res) => {
 });
 
 // List sales (manager+)
-salesRouter.get("/", requireAuth("manager"), (req: any, res) => {
-  const { date, cashierId } = req.query as Record<string, string>;
-  let rows = db.select().from(sales).where(eq(sales.businessId, req.principal.businessId)).all();
+salesRouter.get("/", requireAuth("manager"), async (req: any, res) => {
+  const { date, cashierId, page, limit } = req.query as Record<string, string>;
+  let rows = await db
+    .select()
+    .from(sales)
+    .where(eq(sales.businessId, req.principal.businessId));
   if (date) rows = rows.filter((s) => s.createdAt.slice(0, 10) === date);
   if (cashierId && cashierId !== "all") rows = rows.filter((s) => s.cashierId === cashierId);
   rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  res.json({ success: true, data: rows });
+
+  const pageNum = Math.max(1, parseInt(page ?? "1", 10) || 1);
+  const limitNum = Math.max(1, Math.min(100, parseInt(limit ?? "50", 10) || 50));
+  const total = rows.length;
+  const paged = rows.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
+  res.json({ success: true, data: paged, meta: { total, page: pageNum, limit: limitNum } });
 });
 
 // Get one sale + items (cashier may only read own)
-salesRouter.get("/:id", requireAuth(), (req: any, res) => {
-  const [sale] = db
+salesRouter.get("/:id", requireAuth(), async (req: any, res) => {
+  const [sale] = await db
     .select()
     .from(sales)
-    .where(and(eq(sales.id, String(req.params.id)), eq(sales.businessId, req.principal.businessId)))
-    .all();
+    .where(and(eq(sales.id, String(req.params.id)), eq(sales.businessId, req.principal.businessId)));
   if (!sale) throw new AppError("SALE_NOT_FOUND", 404);
   if (req.principal.role === "cashier" && sale.cashierId !== req.principal.id) {
     throw new AppError("FORBIDDEN", 403);
   }
-  const items = db
+  const items = await db
     .select()
     .from(saleItems)
     .where(eq(saleItems.saleId, sale.id))
-    .orderBy(desc(saleItems.id))
-    .all();
+    .orderBy(desc(saleItems.id));
+  res.json({ success: true, data: { sale, items } });
+});
+
+// Receipt data (cashier may only read own — PRD §5.3)
+salesRouter.get("/:id/receipt", requireAuth(), async (req: any, res) => {
+  const [sale] = await db
+    .select()
+    .from(sales)
+    .where(and(eq(sales.id, String(req.params.id)), eq(sales.businessId, req.principal.businessId)));
+  if (!sale) throw new AppError("SALE_NOT_FOUND", 404);
+  if (req.principal.role === "cashier" && sale.cashierId !== req.principal.id) {
+    throw new AppError("FORBIDDEN", 403);
+  }
+  const items = await db
+    .select()
+    .from(saleItems)
+    .where(eq(saleItems.saleId, sale.id))
+    .orderBy(desc(saleItems.id));
   res.json({ success: true, data: { sale, items } });
 });

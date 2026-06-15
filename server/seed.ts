@@ -38,67 +38,59 @@ const productSeeds: ProductSeed[] = [
   { name: "Salt 1kg", sku: "GRO-004", category: "Groceries", unitPrice: "2200", costPrice: "1500", stockQuantity: 50, lowStockThreshold: 10 },
 ];
 
-export function seedIfEmpty(): void {
-  const existing = db.select().from(businesses).all();
+export async function seedIfEmpty(): Promise<void> {
+  const existing = await db.select().from(businesses);
   if (existing.length > 0) return;
 
   const now = new Date().toISOString();
 
-  db.insert(businesses)
-    .values({
-      id: BUSINESS_ID,
-      name: "Kampala Mart",
-      address: "Plot 12, Kira Road, Kampala, Uganda",
-      phone: "+256 700 000 000",
-      logoUrl: null,
-      currency: "UGX",
+  await db.insert(businesses).values({
+    id: BUSINESS_ID,
+    name: "Kampala Mart",
+    address: "Plot 12, Kira Road, Kampala, Uganda",
+    phone: "+256 700 000 000",
+    logoUrl: null,
+    currency: "UGX",
+    createdAt: now,
+  });
+
+  await db.insert(users).values([
+    {
+      id: "usr-owner",
+      businessId: BUSINESS_ID,
+      name: "Amina Owusu",
+      email: "owner@taktill.app",
+      password: hashPassword("owner1234"),
+      role: "owner",
+    },
+    {
+      id: "usr-manager",
+      businessId: BUSINESS_ID,
+      name: "David Mukasa",
+      email: "manager@taktill.app",
+      password: hashPassword("manager1234"),
+      role: "manager",
+    },
+  ] as any);
+
+  await db.insert(cashiers).values([
+    {
+      id: "csh-1",
+      businessId: BUSINESS_ID,
+      name: "Brenda Nakato",
+      pinHash: bcrypt.hashSync("1234", 12),
+      isActive: true,
       createdAt: now,
-    })
-    .run();
-
-  db.insert(users)
-    .values([
-      {
-        id: "usr-owner",
-        businessId: BUSINESS_ID,
-        name: "Amina Owusu",
-        email: "owner@taktill.app",
-        password: hashPassword("owner1234"),
-        role: "owner",
-        createdAt: now,
-      },
-      {
-        id: "usr-manager",
-        businessId: BUSINESS_ID,
-        name: "David Mukasa",
-        email: "manager@taktill.app",
-        password: hashPassword("manager1234"),
-        role: "manager",
-        createdAt: now,
-      },
-    ])
-    .run();
-
-  db.insert(cashiers)
-    .values([
-      {
-        id: "csh-1",
-        businessId: BUSINESS_ID,
-        name: "Brenda Nakato",
-        pinHash: bcrypt.hashSync("1234", 12),
-        isActive: true,
-        createdAt: now,
-      },
-      {
-        id: "csh-2",
-        businessId: BUSINESS_ID,
-        name: "Joseph Okello",
-        pinHash: bcrypt.hashSync("5678", 12),
-        isActive: true,
-        createdAt: now,
-      },
-    ])
-    .run();
+    },
+    {
+      id: "csh-2",
+      businessId: BUSINESS_ID,
+      name: "Joseph Okello",
+      pinHash: bcrypt.hashSync("5678", 12),
+      isActive: true,
+      createdAt: now,
+    },
+  ]);
 
   const productRows = productSeeds.map((p, i) => ({
     id: `prd-${String(i + 1).padStart(3, "0")}`,
@@ -115,7 +107,7 @@ export function seedIfEmpty(): void {
     createdAt: now,
     updatedAt: now,
   }));
-  db.insert(products).values(productRows).run();
+  await db.insert(products).values(productRows);
 
   // Two sample sales for today so reports/dashboard aren't empty.
   const today = new Date();
@@ -126,45 +118,41 @@ export function seedIfEmpty(): void {
   };
   const prefix = today.toISOString().slice(0, 10).replace(/-/g, "");
 
-  db.insert(sales)
-    .values([
-      {
-        id: "sal-1",
-        businessId: BUSINESS_ID,
-        cashierId: "csh-1",
-        cashierName: "Brenda Nakato",
-        receiptNumber: `${prefix}-0001`,
-        subtotal: "11500.00",
-        totalDiscount: "0.00",
-        grandTotal: "11500.00",
-        paymentMethod: "cash",
-        notes: null,
-        createdAt: at(9, 15),
-      },
-      {
-        id: "sal-2",
-        businessId: BUSINESS_ID,
-        cashierId: "csh-2",
-        cashierName: "Joseph Okello",
-        receiptNumber: `${prefix}-0002`,
-        subtotal: "31000.00",
-        totalDiscount: "1550.00",
-        grandTotal: "29450.00",
-        paymentMethod: "cash",
-        notes: null,
-        createdAt: at(11, 40),
-      },
-    ])
-    .run();
+  await db.insert(sales).values([
+    {
+      id: "sal-1",
+      businessId: BUSINESS_ID,
+      cashierId: "csh-1",
+      cashierName: "Brenda Nakato",
+      receiptNumber: `${prefix}-0001`,
+      subtotal: "11500.00",
+      totalDiscount: "0.00",
+      grandTotal: "11500.00",
+      paymentMethod: "cash",
+      notes: null,
+      createdAt: at(9, 15),
+    },
+    {
+      id: "sal-2",
+      businessId: BUSINESS_ID,
+      cashierId: "csh-2",
+      cashierName: "Joseph Okello",
+      receiptNumber: `${prefix}-0002`,
+      subtotal: "31000.00",
+      totalDiscount: "1550.00",
+      grandTotal: "29450.00",
+      paymentMethod: "cash",
+      notes: null,
+      createdAt: at(11, 40),
+    },
+  ]);
 
-  db.insert(saleItems)
-    .values([
-      { id: "si-1", saleId: "sal-1", productId: "prd-001", productName: "Milk 1L", productSku: "BEV-001", quantity: 2, unitPrice: "3500.00", discountType: null, discountValue: null, discountAmount: "0.00", lineTotal: "7000.00" },
-      { id: "si-2", saleId: "sal-1", productId: "prd-002", productName: "Bread Loaf", productSku: "BAK-001", quantity: 1, unitPrice: "4500.00", discountType: null, discountValue: null, discountAmount: "0.00", lineTotal: "4500.00" },
-      { id: "si-3", saleId: "sal-2", productId: "prd-005", productName: "Rice 5kg", productSku: "GRO-003", quantity: 1, unitPrice: "22000.00", discountType: null, discountValue: null, discountAmount: "0.00", lineTotal: "22000.00" },
-      { id: "si-4", saleId: "sal-2", productId: "prd-003", productName: "Sugar 2kg", productSku: "GRO-001", quantity: 1, unitPrice: "9000.00", discountType: null, discountValue: null, discountAmount: "0.00", lineTotal: "9000.00" },
-    ])
-    .run();
+  await db.insert(saleItems).values([
+    { id: "si-1", saleId: "sal-1", productId: "prd-001", productName: "Milk 1L", productSku: "BEV-001", quantity: 2, unitPrice: "3500.00", discountType: null, discountValue: null, discountAmount: "0.00", lineTotal: "7000.00" },
+    { id: "si-2", saleId: "sal-1", productId: "prd-002", productName: "Bread Loaf", productSku: "BAK-001", quantity: 1, unitPrice: "4500.00", discountType: null, discountValue: null, discountAmount: "0.00", lineTotal: "4500.00" },
+    { id: "si-3", saleId: "sal-2", productId: "prd-005", productName: "Rice 5kg", productSku: "GRO-003", quantity: 1, unitPrice: "22000.00", discountType: null, discountValue: null, discountAmount: "0.00", lineTotal: "22000.00" },
+    { id: "si-4", saleId: "sal-2", productId: "prd-003", productName: "Sugar 2kg", productSku: "GRO-001", quantity: 1, unitPrice: "9000.00", discountType: null, discountValue: null, discountAmount: "0.00", lineTotal: "9000.00" },
+  ]);
 
   console.log("[seed] Database seeded with sample data.");
 }

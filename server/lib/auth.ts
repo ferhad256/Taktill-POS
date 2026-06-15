@@ -119,3 +119,7 @@ export async function logoutCashier(token?: string): Promise<void> {
   if (!token) return;
   await db.delete(cashierSessions).where(eq(cashierSessions.tokenHash, sha256(token)));
 }
+
+export function hashPassword(password: string): string {
+  return bcrypt.hashSync(password, 10);
+}

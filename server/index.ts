@@ -13,7 +13,7 @@ import { salesRouter } from "./routes/sales";
 import { reportsRouter } from "./routes/reports";
 import { settingsRouter } from "./routes/settings";
 
-seedIfEmpty();
+void seedIfEmpty();
 
 const app = express();
 app.use(express.json());
