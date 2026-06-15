@@ -31,8 +31,8 @@ export const auth = betterAuth({
     // /users endpoint, so Better Auth must hash/verify with bcrypt too —
     // otherwise its default scrypt verifier rejects every stored hash.
     password: {
-      hash: (password) => bcrypt.hashSync(password, 12),
-      verify: ({ password, hash }) => bcrypt.compareSync(password, hash),
+      hash: async (password) => bcrypt.hashSync(password, 12),
+      verify: async ({ password, hash }) => bcrypt.compareSync(password, hash),
     },
   },
   session: {
