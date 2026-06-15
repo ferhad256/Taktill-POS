@@ -1,66 +1,119 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router";
-import SignIn from "./pages/AuthPages/SignIn";
-import SignUp from "./pages/AuthPages/SignUp";
-import NotFound from "./pages/OtherPage/NotFound";
-import UserProfiles from "./pages/UserProfiles";
-import Videos from "./pages/UiElements/Videos";
-import Images from "./pages/UiElements/Images";
-import Alerts from "./pages/UiElements/Alerts";
-import Badges from "./pages/UiElements/Badges";
-import Avatars from "./pages/UiElements/Avatars";
-import Buttons from "./pages/UiElements/Buttons";
-import LineChart from "./pages/Charts/LineChart";
-import BarChart from "./pages/Charts/BarChart";
-import Calendar from "./pages/Calendar";
-import BasicTables from "./pages/Tables/BasicTables";
-import FormElements from "./pages/Forms/FormElements";
-import Blank from "./pages/Blank";
-import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
-import Home from "./pages/Dashboard/Home";
+import { AuthProvider } from "./context/AuthContext";
+import RequireAuth from "./components/auth/RequireAuth";
+import { Toaster } from "./components/ui/toast";
+import AppLayout from "./layout/AppLayout";
+
+import Login from "./pages/auth/Login";
+import Dashboard from "./pages/Dashboard";
+import POS from "./pages/pos/POS";
+import Sales from "./pages/sales/Sales";
+import Receipt from "./pages/sales/Receipt";
+import Inventory from "./pages/inventory/Inventory";
+import ProductForm from "./pages/inventory/ProductForm";
+import DailySummary from "./pages/reports/DailySummary";
+import ProductSales from "./pages/reports/ProductSales";
+import Users from "./pages/settings/Users";
+import BusinessSettings from "./pages/settings/BusinessSettings";
+import NotFound from "./pages/OtherPage/NotFound";
 
 export default function App() {
   return (
-    <>
+    <AuthProvider>
       <Router>
         <ScrollToTop />
+        <Toaster />
         <Routes>
-          {/* Dashboard Layout */}
-          <Route element={<AppLayout />}>
-            <Route index path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
 
-            {/* Others Page */}
-            <Route path="/profile" element={<UserProfiles />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/blank" element={<Blank />} />
-
-            {/* Forms */}
-            <Route path="/form-elements" element={<FormElements />} />
-
-            {/* Tables */}
-            <Route path="/basic-tables" element={<BasicTables />} />
-
-            {/* Ui Elements */}
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/avatars" element={<Avatars />} />
-            <Route path="/badge" element={<Badges />} />
-            <Route path="/buttons" element={<Buttons />} />
-            <Route path="/images" element={<Images />} />
-            <Route path="/videos" element={<Videos />} />
-
-            {/* Charts */}
-            <Route path="/line-chart" element={<LineChart />} />
-            <Route path="/bar-chart" element={<BarChart />} />
+          {/* Authenticated app */}
+          <Route
+            element={
+              <RequireAuth>
+                <AppLayout />
+              </RequireAuth>
+            }
+          >
+            <Route
+              index
+              element={
+                <RequireAuth minRole="manager">
+                  <Dashboard />
+                </RequireAuth>
+              }
+            />
+            <Route path="/pos" element={<POS />} />
+            <Route path="/sales/:id/receipt" element={<Receipt />} />
+            <Route
+              path="/sales"
+              element={
+                <RequireAuth minRole="manager">
+                  <Sales />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/inventory"
+              element={
+                <RequireAuth minRole="manager">
+                  <Inventory />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/inventory/new"
+              element={
+                <RequireAuth minRole="manager">
+                  <ProductForm />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/inventory/:id/edit"
+              element={
+                <RequireAuth minRole="manager">
+                  <ProductForm />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/reports/daily"
+              element={
+                <RequireAuth minRole="manager">
+                  <DailySummary />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/reports/products"
+              element={
+                <RequireAuth minRole="manager">
+                  <ProductSales />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/settings/users"
+              element={
+                <RequireAuth minRole="owner">
+                  <Users />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/settings/business"
+              element={
+                <RequireAuth minRole="owner">
+                  <BusinessSettings />
+                </RequireAuth>
+              }
+            />
           </Route>
 
-          {/* Auth Layout */}
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
-
-          {/* Fallback Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
-    </>
+    </AuthProvider>
   );
 }

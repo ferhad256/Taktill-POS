@@ -790,3 +790,24 @@ span.flatpickr-weekday,
 .simplebar-scrollbar.simplebar-visible:before {
   @apply opacity-100;
 }
+
+/* Printing. App chrome (sidebar/header) is hidden via print: utilities.
+   Reports print their page content directly. The POS receipt modal overlays
+   another page, so it isolates #receipt-print when body has .print-receipt. */
+@media print {
+  body.print-receipt * {
+    visibility: hidden;
+  }
+  body.print-receipt #receipt-print,
+  body.print-receipt #receipt-print * {
+    visibility: visible;
+  }
+  body.print-receipt #receipt-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none;
+    box-shadow: none;
+  }
+}
